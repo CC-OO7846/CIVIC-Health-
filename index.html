@@ -461,13 +461,13 @@ button.quick-inspect-hidden{display:none !important}
 }
 
 
-/* V10.13 Reference price presentation */
+/* V10.14 Reference price presentation */
 .pm-price{font-weight:800;font-size:13px;color:#f2f2f3;white-space:nowrap}
 .price-scope{display:block;margin-top:4px;color:#656b75;font-size:7px;line-height:1.25;font-weight:500;letter-spacing:.02em;text-transform:none;overflow-wrap:anywhere}
 .pm-table th:nth-child(5),.pm-table td:nth-child(5){min-width:150px}
 
 
-/* === V10.13 PWA + Local Database === */
+/* === V10.14 PWA + Local Database === */
 .budget-shell{
   padding:24px;
   border:1px solid #20242b;
@@ -628,7 +628,7 @@ button.quick-inspect-hidden{display:none !important}
 }
 
 
-/* === V10.13 PWA + IndexedDB === */
+/* === V10.14 PWA + IndexedDB === */
 .storage-panel{
   margin-top:18px;
   padding:18px;
@@ -717,6 +717,494 @@ button.quick-inspect-hidden{display:none !important}
   .storage-actions>*{flex:1 1 45%;text-align:center}
 }
 
+
+/* =========================================================
+   V10.14 MOBILE UX — Car Health App
+   ========================================================= */
+:root{
+  --mobile-blue:#2797ff;
+  --mobile-blue2:#4ec5ff;
+  --mobile-panel:#0d1015;
+  --mobile-line:#232831;
+}
+.mobile-dashboard,.mobile-tabbar{display:none}
+
+.brand-mark{
+  overflow:hidden;
+  padding:0;
+  background:#0b0d11;
+}
+.brand-mark img{width:100%;height:100%;object-fit:cover;display:block}
+
+@media(max-width:760px){
+  html{scroll-padding-top:66px}
+  body{
+    padding-bottom:calc(82px + env(safe-area-inset-bottom));
+    background:#07090c;
+  }
+  .topbar{
+    height:58px;
+    background:rgba(5,7,10,.88);
+    backdrop-filter:blur(18px);
+    border-bottom:1px solid rgba(255,255,255,.07);
+  }
+  .topbar-inner{padding:0 14px}
+  .brand{gap:9px}
+  .brand-mark{width:34px;height:34px;border-radius:10px;border-color:#303641}
+  .brand strong{
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:none;
+  }
+  .brand small{display:none}
+  .top-actions{gap:6px}
+  .top-actions .btn{
+    padding:8px 10px;
+    min-height:36px;
+    font-size:8px;
+    letter-spacing:.06em;
+  }
+  .top-actions .quick-inspect-hidden{display:none!important}
+
+  .hero{
+    min-height:286px;
+    margin:68px 12px 0;
+    border:1px solid #222934;
+    border-radius:19px;
+    overflow:hidden;
+    background:#0b0e12;
+  }
+  .hero img{
+    object-position:center 54%;
+    transform:scale(1.02);
+  }
+  .hero::after{
+    background:
+      linear-gradient(180deg,rgba(4,7,10,.05) 0%,rgba(4,7,10,.12) 42%,rgba(4,7,10,.93) 100%),
+      linear-gradient(90deg,rgba(4,7,10,.28),transparent 60%);
+  }
+  .hero-inner{
+    min-height:286px;
+    padding:16px 16px 17px;
+    justify-content:flex-end;
+  }
+  .eyebrow{display:none}
+  .hero h1{
+    margin:0 0 7px;
+    font-size:31px;
+    line-height:.95;
+    letter-spacing:-.04em;
+  }
+  .hero h1 span{
+    display:inline;
+    color:#fff;
+    -webkit-text-stroke:0;
+  }
+  .hero-meta{
+    gap:9px;
+    font-size:8px;
+    letter-spacing:.04em;
+    color:#adb4bf;
+  }
+  .hero-meta div:nth-child(2),
+  .hero-meta div:nth-child(3){display:none}
+  .hero-cta{display:none}
+
+  .kpi-strip,.health-disclaimer{display:none!important}
+
+  .mobile-dashboard{
+    display:block;
+    padding:12px 12px 2px;
+  }
+  .mobile-dash-card{
+    background:
+      radial-gradient(circle at 90% -10%,rgba(39,151,255,.13),transparent 34%),
+      linear-gradient(155deg,#10141a,#0a0c10);
+    border:1px solid #222934;
+    border-radius:19px;
+    padding:15px;
+    box-shadow:0 16px 44px rgba(0,0,0,.22);
+  }
+  .mobile-dash-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:13px;
+  }
+  .mobile-dash-head small{
+    display:block;
+    color:#6f7885;
+    font-size:8px;
+    letter-spacing:.13em;
+    text-transform:uppercase;
+  }
+  .mobile-dash-head strong{
+    display:block;
+    margin-top:3px;
+    font-size:16px;
+    letter-spacing:-.02em;
+  }
+  .mobile-km{
+    border:1px solid #28313c;
+    background:#0a0d11;
+    border-radius:999px;
+    padding:7px 10px;
+    font-size:9px;
+    color:#b8c0cb;
+    white-space:nowrap;
+  }
+
+  .mobile-health-row{
+    display:grid;
+    grid-template-columns:112px 1fr;
+    gap:14px;
+    align-items:center;
+  }
+  .mobile-health-ring{
+    --score:0;
+    width:108px;
+    height:108px;
+    border-radius:50%;
+    padding:8px;
+    background:conic-gradient(var(--mobile-blue) calc(var(--score)*1%),#1b212a 0);
+    box-shadow:0 0 28px rgba(39,151,255,.13);
+  }
+  .mobile-health-ring-inner{
+    width:100%;height:100%;
+    border-radius:50%;
+    background:#090c10;
+    display:grid;
+    place-items:center;
+    text-align:center;
+    border:1px solid #242b34;
+  }
+  .mobile-health-ring-inner b{
+    display:block;
+    font-size:31px;
+    line-height:.9;
+    letter-spacing:-.06em;
+  }
+  .mobile-health-ring-inner span{
+    display:block;
+    margin-top:5px;
+    color:#64b8ff;
+    font-size:8px;
+    letter-spacing:.11em;
+    text-transform:uppercase;
+  }
+  .mobile-health-copy h3{
+    margin:0;
+    font-size:14px;
+  }
+  .mobile-health-copy p{
+    margin:6px 0 0;
+    color:#7f8894;
+    font-size:10px;
+    line-height:1.5;
+  }
+
+  .mobile-system-grid{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:7px;
+    margin-top:13px;
+  }
+  .mobile-system{
+    border:1px solid #202731;
+    background:#0a0d11;
+    border-radius:12px;
+    padding:10px 8px;
+    text-align:center;
+  }
+  .mobile-system small{
+    display:block;
+    color:#6e7783;
+    font-size:7px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+  }
+  .mobile-system b{
+    display:block;
+    margin-top:5px;
+    font-size:18px;
+  }
+  .mobile-system span{
+    display:block;
+    margin-top:3px;
+    color:#60b8ff;
+    font-size:7px;
+    text-transform:uppercase;
+  }
+
+  .mobile-plan-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-top:10px;
+  }
+  .mobile-plan-card{
+    border:1px solid #222a34;
+    border-radius:13px;
+    background:#0a0d11;
+    padding:12px;
+    min-width:0;
+  }
+  .mobile-plan-card small{
+    display:block;
+    color:#6f7884;
+    font-size:7px;
+    letter-spacing:.11em;
+    text-transform:uppercase;
+  }
+  .mobile-plan-card strong{
+    display:block;
+    margin-top:6px;
+    font-size:14px;
+    line-height:1.2;
+    overflow-wrap:anywhere;
+  }
+  .mobile-plan-card span{
+    display:block;
+    margin-top:5px;
+    color:#7f8995;
+    font-size:8px;
+    line-height:1.35;
+  }
+  .mobile-plan-card.blue{
+    border-color:#21496d;
+    background:linear-gradient(145deg,#0b1722,#091016);
+  }
+  .mobile-plan-card.blue strong{color:#82c8ff}
+
+  .mobile-quick{
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:7px;
+    margin-top:10px;
+  }
+  .mobile-quick button{
+    appearance:none;
+    border:1px solid #222a34;
+    background:#0a0d11;
+    color:#dfe4ea;
+    border-radius:12px;
+    padding:10px 5px 9px;
+    min-height:58px;
+    font-size:7px;
+    line-height:1.25;
+  }
+  .mobile-quick button b{
+    display:block;
+    margin:0 auto 6px;
+    color:#3da8ff;
+    font-size:17px;
+    line-height:1;
+  }
+
+  main,.section,.vh-shell{max-width:none}
+  .section,.vh-shell{
+    padding:38px 12px;
+  }
+  .section-head{
+    display:block;
+    margin-bottom:16px;
+  }
+  .section-head .label{font-size:7px}
+  .section-head h2{
+    margin-top:5px;
+    font-size:28px;
+    letter-spacing:-.04em;
+  }
+  .section-head p{
+    margin-top:8px;
+    font-size:10px;
+    line-height:1.5;
+  }
+
+  #vehicleHealth{padding-top:34px}
+  .vh-overview{
+    grid-template-columns:1fr!important;
+    gap:10px!important;
+  }
+  .system-health-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .system-card{padding:13px!important}
+  .system-score{font-size:25px!important}
+
+  .budget-shell{padding:14px;border-radius:17px}
+  .budget-top{grid-template-columns:1fr}
+  .budget-summary{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:7px;
+  }
+  .budget-kpi{padding:11px}
+  .budget-kpi strong{font-size:20px}
+  .budget-filters{
+    overflow-x:auto;
+    flex-wrap:nowrap;
+    padding-bottom:4px;
+    scrollbar-width:none;
+  }
+  .budget-filters::-webkit-scrollbar{display:none}
+  .budget-filter{flex:0 0 auto}
+  .budget-table-wrap{
+    border:0;
+    overflow:visible;
+  }
+  .budget-table{
+    min-width:0;
+    display:block;
+  }
+  .budget-table thead{display:none}
+  .budget-table tbody{display:grid;gap:8px}
+  .budget-table tr{
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:7px 10px;
+    border:1px solid #202731;
+    border-radius:13px;
+    padding:11px;
+    background:#0a0d11;
+  }
+  .budget-table td{
+    display:block;
+    border:0;
+    padding:0;
+  }
+  .budget-table td:nth-child(1){grid-column:1}
+  .budget-table td:nth-child(2){grid-column:2;grid-row:1}
+  .budget-table td:nth-child(3){grid-column:1 / -1}
+  .budget-table td:nth-child(4){grid-column:1}
+  .budget-table td:nth-child(5){grid-column:2;text-align:right}
+  .budget-price{font-size:14px}
+
+  .history-toolbar{
+    top:58px;
+    grid-template-columns:1fr auto;
+    padding:8px 0;
+  }
+  .history-toolbar input{grid-column:1 / -1}
+  .history-toolbar select{min-width:0}
+  .history-toolbar .btn{padding:9px 10px}
+  .history-grid{grid-template-columns:1fr;gap:9px}
+  .history-card{
+    display:grid;
+    grid-template-columns:112px minmax(0,1fr);
+    border-radius:15px;
+  }
+  .part-photo{
+    aspect-ratio:auto;
+    min-height:100%;
+    border-bottom:0;
+    border-right:1px solid #e4e8ed;
+    padding:10px;
+  }
+  .part-photo img{width:94%;height:94%}
+  .upload-overlay{
+    right:6px;bottom:6px;
+    padding:5px 6px;
+    font-size:0;
+    opacity:.75;
+  }
+  .upload-overlay:before{content:"＋";font-size:12px}
+  .card-body{padding:11px}
+  .card-top{display:block}
+  .part-name{font-size:14px;line-height:1.15}
+  .system{font-size:7px}
+  .verify{display:none}
+  .record-data{
+    grid-template-columns:1fr 1fr;
+    gap:5px;
+    margin-top:9px;
+  }
+  .record-data div{padding:7px}
+  .record-data small{font-size:6px}
+  .record-data strong{font-size:9px}
+  .life{margin-top:9px;padding:9px 10px}
+  .life-row strong{font-size:20px}
+  .note{display:none}
+  .card-actions{margin-top:8px;gap:4px}
+  .card-actions button{
+    padding:7px 4px;
+    font-size:6px;
+  }
+
+  .pm-table-wrap{
+    overflow-x:auto;
+    border-radius:13px;
+  }
+  .pm-table{min-width:760px}
+
+  .storage-panel{padding:14px}
+  .storage-grid{grid-template-columns:1fr 1fr}
+  .storage-actions>*{
+    flex:1 1 calc(50% - 8px);
+  }
+
+  .mobile-tabbar{
+    position:fixed;
+    z-index:120;
+    left:9px;right:9px;
+    bottom:calc(8px + env(safe-area-inset-bottom));
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    align-items:end;
+    padding:7px 6px 6px;
+    background:rgba(9,12,16,.94);
+    backdrop-filter:blur(22px);
+    border:1px solid rgba(255,255,255,.09);
+    border-radius:19px;
+    box-shadow:0 15px 40px rgba(0,0,0,.38);
+  }
+  .mobile-tabbar button{
+    appearance:none;
+    border:0;
+    background:transparent;
+    color:#747d89;
+    padding:5px 2px 3px;
+    min-width:0;
+    font-size:7px;
+    text-align:center;
+  }
+  .mobile-tabbar svg{
+    display:block;
+    width:20px;height:20px;
+    margin:0 auto 3px;
+    stroke:currentColor;
+    fill:none;
+    stroke-width:1.8;
+  }
+  .mobile-tabbar button.active{color:#3ca8ff}
+  .mobile-tabbar .mobile-add{
+    width:49px;height:49px;
+    justify-self:center;
+    margin-top:-22px;
+    border-radius:50%;
+    color:#fff;
+    background:linear-gradient(180deg,#42aaff,#0871df);
+    border:3px solid #131820;
+    box-shadow:0 0 0 1px #3e8dcc,0 7px 20px rgba(30,141,255,.35);
+  }
+  .mobile-tabbar .mobile-add svg{
+    width:24px;height:24px;margin:7px auto 0;
+  }
+  .mobile-tabbar .mobile-add span{display:none}
+
+  .modal{
+    align-items:flex-end!important;
+    padding:0!important;
+  }
+  .modal-card{
+    width:100%!important;
+    max-width:none!important;
+    max-height:88vh!important;
+    border-radius:22px 22px 0 0!important;
+    padding-bottom:calc(18px + env(safe-area-inset-bottom))!important;
+  }
+}
+
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
@@ -725,15 +1213,16 @@ button.quick-inspect-hidden{display:none !important}
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Clean Garage">
-<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./icon-180.png">
 
+<meta name="format-detection" content="telephone=no">
 </head>
 <body>
 
 <header class="topbar" id="topbar">
   <div class="topbar-inner">
     <div class="brand">
-      <div class="brand-mark">CG</div>
+      <div class="brand-mark"><img src="./icon-192.png" alt=""></div>
       <div><strong>Clean Garage</strong><small>Civic ES Personal Log</small></div>
     </div>
     <div class="top-actions">
@@ -761,6 +1250,57 @@ button.quick-inspect-hidden{display:none !important}
     </div>
   </div>
 </section>
+
+<section class="mobile-dashboard" id="mobileHome">
+  <div class="mobile-dash-card">
+    <div class="mobile-dash-head">
+      <div>
+        <small>My garage</small>
+        <strong>Honda Civic ES · K20A</strong>
+      </div>
+      <button class="mobile-km" onclick="openCarModal()"><span id="mobileKm">—</span> km</button>
+    </div>
+
+    <div class="mobile-health-row">
+      <div class="mobile-health-ring" id="mobileHealthRing">
+        <div class="mobile-health-ring-inner">
+          <div><b id="mobileHealthScore">—</b><span id="mobileHealthGrade">Health</span></div>
+        </div>
+      </div>
+      <div class="mobile-health-copy">
+        <h3>Vehicle Health</h3>
+        <p id="mobileHealthMessage">กำลังอ่านข้อมูลสุขภาพรถ…</p>
+      </div>
+    </div>
+
+    <div class="mobile-system-grid">
+      <div class="mobile-system"><small>Engine</small><b id="mobileEngineScore">—</b><span id="mobileEngineGrade">—</span></div>
+      <div class="mobile-system"><small>Transmission</small><b id="mobileTransScore">—</b><span id="mobileTransGrade">—</span></div>
+      <div class="mobile-system"><small>Brake</small><b id="mobileBrakeScore">—</b><span id="mobileBrakeGrade">—</span></div>
+    </div>
+
+    <div class="mobile-plan-grid">
+      <button class="mobile-plan-card" onclick="document.getElementById('nextBudget').scrollIntoView({behavior:'smooth'})">
+        <small>Next service</small>
+        <strong id="mobileNextService">—</strong>
+        <span id="mobileNextServiceDetail">No scheduled item</span>
+      </button>
+      <button class="mobile-plan-card blue" onclick="document.getElementById('nextBudget').scrollIntoView({behavior:'smooth'})">
+        <small>Upcoming budget ≤5k</small>
+        <strong id="mobileBudget5k">฿0</strong>
+        <span id="mobileBudgetCount">0 items</span>
+      </button>
+    </div>
+
+    <div class="mobile-quick">
+      <button onclick="openHistoryModal()"><b>＋</b>Add Service</button>
+      <button onclick="openCarModal()"><b>⌁</b>Update KM</button>
+      <button onclick="document.getElementById('history').scrollIntoView({behavior:'smooth'})"><b>⚙</b>Parts</button>
+      <button onclick="exportDatabaseBackup()"><b>⇩</b>Backup</button>
+    </div>
+  </div>
+</section>
+
 
 <section class="kpi-strip">
   <div class="kpi-grid">
@@ -949,7 +1489,7 @@ button.quick-inspect-hidden{display:none !important}
   <div class="section-head">
     <div>
       <div class="label">Maintenance planning</div>
-      <h2>PWA + Local Database.</h2>
+      <h2>Next Service Budget.</h2>
     </div>
     <p>คำนวณจาก Current Odometer, PM Plan และ Reference Price ในเว็บ โดยใช้เงื่อนไขที่ถึงก่อนระหว่างระยะทางกับวันที่ เพื่อให้เห็นว่างบก้อนไหนกำลังเข้ามา.</p>
   </div>
@@ -1729,7 +2269,7 @@ function hideQuickInspectionUI(){
 
 function renderLegacyKpi(o){const engine=o.systems.find(x=>x.system==='Engine'),trans=o.systems.find(x=>x.system==='Transmission'),next=forecast()[0];const set=(id,gid,obj)=>{const el=document.getElementById(id),ge=document.getElementById(gid);if(!el||!ge)return;el.textContent=obj?.score??'—';const gr=grade(obj?.score??null);ge.textContent=gr.label;ge.style.color=gr.color};set('engineHealthStat','engineHealthGrade',engine);set('transHealthStat','transHealthGrade',trans);const veh={score:o.score};set('vehicleHealthStat','vehicleHealthGrade',veh);nextServiceStat.textContent=next?.title||'—';nextServiceDetail.textContent=next?.label||'No due record'}
 
-// === V10.13 PWA + Local Database ===
+// === V10.14 PWA + Local Database ===
 let budgetWindow=5000;
 const BUDGET_SERVICE_KEYS=new Set(['throttle_body_clean','tire_rotation','fuel_injector_clean','valve_adjustment']);
 
@@ -1855,7 +2395,71 @@ function renderNextBudget(){
   }).join(''):'<tr><td colspan="5"><div class="empty">No planned maintenance found in this window.</div></td></tr>';
 }
 
-function renderAll(){refreshAlerts();const o=renderHealth();renderLegacyKpi(o);renderAlerts();renderForecast();renderFluids();renderPartsLife();renderSymptoms();renderInspection();renderRisk();renderTimeline();renderTrend();renderNextBudget();renderPmSchedule();renderHistory();heroKm.textContent=fmt(db.car.km);persist()}
+
+// === V10.14 Mobile UX ===
+function mobileSystemView(overall,name,scoreId,gradeId){
+  const s=overall.systems.find(x=>x.system===name);
+  const score=document.getElementById(scoreId);
+  const gr=document.getElementById(gradeId);
+  if(!score||!gr)return;
+  const g=grade(s?.score??null);
+  score.textContent=s?.score==null?'—':s.score+'%';
+  gr.textContent=g.label;
+  gr.style.color=g.color;
+}
+function renderMobileDashboard(){
+  const scoreEl=document.getElementById('mobileHealthScore');
+  if(!scoreEl)return;
+  const o=overallHealth();
+  const g=grade(o.score);
+  scoreEl.textContent=o.score==null?'—':o.score;
+  const gradeEl=document.getElementById('mobileHealthGrade');
+  gradeEl.textContent=g.label;
+  gradeEl.style.color=g.color;
+
+  const ring=document.getElementById('mobileHealthRing');
+  ring?.style.setProperty('--score',String(o.score==null?0:o.score));
+
+  const msg=document.getElementById('mobileHealthMessage');
+  if(o.score==null)msg.textContent='ยังมีข้อมูลไม่พอสำหรับประเมินภาพรวม เพิ่มประวัติ PM เพื่อให้คะแนนแม่นขึ้น';
+  else if(o.score>=90)msg.textContent='สภาพรวมดีมาก รักษารอบ PM และติดตามรายการที่ใกล้ครบอายุ';
+  else if(o.score>=80)msg.textContent='สภาพรวมดี มีบางรายการที่ควรวางแผนตาม Remaining Life';
+  else if(o.score>=70)msg.textContent='มีรายการที่ควรติดตาม วางแผนตรวจและเตรียมงบล่วงหน้า';
+  else msg.textContent='มีรายการที่ควรให้ความสำคัญ เปิด Vehicle Health เพื่อดูสาเหตุหลัก';
+
+  mobileSystemView(o,'Engine','mobileEngineScore','mobileEngineGrade');
+  mobileSystemView(o,'Transmission','mobileTransScore','mobileTransGrade');
+  mobileSystemView(o,'Brake','mobileBrakeScore','mobileBrakeGrade');
+
+  const km=document.getElementById('mobileKm');
+  if(km)km.textContent=fmt(db.car.km);
+
+  const f=forecast()[0];
+  const ns=document.getElementById('mobileNextService');
+  const nd=document.getElementById('mobileNextServiceDetail');
+  if(ns)ns.textContent=f?.title||'No due item';
+  if(nd)nd.textContent=f?.label||'No scheduled item';
+
+  const all=budgetAll();
+  const w5=all.filter(x=>x.overdue||(x.effectiveKm!==null&&x.effectiveKm<=5000));
+  const budget=document.getElementById('mobileBudget5k');
+  const count=document.getElementById('mobileBudgetCount');
+  if(budget)budget.textContent='฿'+fmt(budgetSum(w5));
+  if(count)count.textContent=`${w5.length} item${w5.length===1?'':'s'}`;
+}
+function mobileNavigate(tab,button){
+  const target={
+    home:'mobileHome',
+    health:'vehicleHealth',
+    budget:'nextBudget',
+    more:'localDatabase'
+  }[tab];
+  if(target)document.getElementById(target)?.scrollIntoView({behavior:'smooth',block:'start'});
+  document.querySelectorAll('.mobile-tabbar button[data-mobile-nav]').forEach(b=>b.classList.remove('active'));
+  if(button?.dataset?.mobileNav)button.classList.add('active');
+}
+
+function renderAll(){refreshAlerts();const o=renderHealth();renderLegacyKpi(o);renderAlerts();renderForecast();renderFluids();renderPartsLife();renderSymptoms();renderInspection();renderRisk();renderTimeline();renderTrend();renderNextBudget();renderPmSchedule();renderHistory();renderMobileDashboard();heroKm.textContent=fmt(db.car.km);persist()}
 function render(){renderAll()}
 
 function openHistoryModal(){editingId=null;historyModalTitle.textContent='Add repaired part';['fPart','fSystem','fDate','fKm','fPrice','fIntervalKm','fIntervalMonths','fNote'].forEach(id=>document.getElementById(id).value='');fDate.value=todayIso();fKm.value=db.car.km;fImage.value='';fEventType.value='part_replacement';historyModal.classList.add('show')}
@@ -1877,5 +2481,29 @@ bootDatabase();
 window.addEventListener('online',updateStorageStatus);
 window.addEventListener('offline',updateStorageStatus);
 </script>
+
+<nav class="mobile-tabbar" aria-label="Mobile navigation">
+  <button class="active" data-mobile-nav="home" onclick="mobileNavigate('home',this)">
+    <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9h13v-9"/></svg>
+    <span>Home</span>
+  </button>
+  <button data-mobile-nav="health" onclick="mobileNavigate('health',this)">
+    <svg viewBox="0 0 24 24"><path d="M12 21s-7-4.2-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 11c0 5.8-7 10-7 10Z"/><path d="M8 13h2l1-3 2 6 1-3h2"/></svg>
+    <span>Health</span>
+  </button>
+  <button class="mobile-add" onclick="openHistoryModal()" aria-label="Add service record">
+    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    <span>Add</span>
+  </button>
+  <button data-mobile-nav="budget" onclick="mobileNavigate('budget',this)">
+    <svg viewBox="0 0 24 24"><path d="M4 7h16v12H4z"/><path d="M7 7V5h10v2M8 11h8M8 15h5"/></svg>
+    <span>Budget</span>
+  </button>
+  <button data-mobile-nav="more" onclick="mobileNavigate('more',this)">
+    <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+    <span>More</span>
+  </button>
+</nav>
+
 </body>
 </html>

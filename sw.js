@@ -1,8 +1,9 @@
-const CACHE_NAME='clean-garage-v10.13-pwa';
+const CACHE_NAME='clean-garage-v10.14-mobile';
 const CORE=[
   './',
   './index.html',
   './manifest.webmanifest',
+  './icon-180.png',
   './icon-192.png',
   './icon-512.png'
 ];

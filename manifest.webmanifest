@@ -1,14 +1,14 @@
 {
-  "name": "Clean Garage — Civic ES",
+  "name": "Clean Garage — Car Health",
   "short_name": "Clean Garage",
-  "description": "Offline-first maintenance, PM, vehicle health and budget tracker for Civic ES.",
+  "description": "Offline-first vehicle health, maintenance and service budget tracker.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#08090b",
-  "theme_color": "#08090b",
+  "background_color": "#07090c",
+  "theme_color": "#07090c",
   "icons": [
     {
       "src": "./icon-192.png",
