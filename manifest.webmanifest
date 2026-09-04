@@ -1,14 +1,15 @@
 {
   "name": "Clean Garage — Car Health",
   "short_name": "Clean Garage",
-  "description": "Offline-first vehicle health, maintenance and service budget tracker.",
+  "description": "Offline-first vehicle health, maintenance, service records, warranty and budget tracker.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#07090c",
-  "theme_color": "#07090c",
+  "theme_color": "#08090b",
+  "lang": "th",
   "icons": [
     {
       "src": "./car-health-icon-v2-192.png",
