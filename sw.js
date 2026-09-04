@@ -1,11 +1,11 @@
-const CACHE_NAME='clean-garage-v10.14-mobile';
+const CACHE_NAME='clean-garage-v10.15-compact';
 const CORE=[
   './',
   './index.html',
   './manifest.webmanifest',
-  './icon-180.png',
-  './icon-192.png',
-  './icon-512.png'
+  './car-health-icon-v2-180.png',
+  './car-health-icon-v2-192.png',
+  './car-health-icon-v2-512.png'
 ];
 
 self.addEventListener('install',event=>{
