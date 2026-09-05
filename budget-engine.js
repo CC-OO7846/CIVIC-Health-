@@ -31,7 +31,7 @@ function buildBudgetMeta(pm,context,now=new Date()){
 function budgetMeta(pm){return buildBudgetMeta(pm,{currentKm:db.car.km,monthlyKm:db.car.monthlyKm},new Date());}
 function budgetAll(){
   const seen=new Set();
-  return PM_SCHEDULE.filter(pm=>pm.pmKey!=='prostate'&&!seen.has(pm.pmKey)&&seen.add(pm.pmKey)).map(budgetMeta).filter(row=>row.effectiveKm!==null||row.dueDate).sort((a,b)=>{
+  return PM_SCHEDULE.filter(pm=>!seen.has(pm.pmKey)&&seen.add(pm.pmKey)).map(budgetMeta).filter(row=>row.effectiveKm!==null||row.dueDate).sort((a,b)=>{
     if(a.overdue!==b.overdue)return a.overdue?-1:1;
     return (a.effectiveKm??1e15)-(b.effectiveKm??1e15);
   });

@@ -7,10 +7,109 @@ const SYSTEMS=['Engine','Transmission','Cooling','Electrical','Brake','Suspensio
 const SYSTEM_WEIGHTS={Engine:0.16,Transmission:0.14,Cooling:0.10,Electrical:0.08,Brake:0.12,Suspension:0.10,Steering:0.07,Tires:0.08,Fluids:0.07,Battery:0.04,'Air Conditioning':0.04};
 const MILEAGE_STRESS_SYSTEMS=new Set(['Engine','Transmission','Cooling','Suspension','Steering']);
 const FLUID_CATALOG=[
-  {name:'Engine Oil',system:'Engine'}, {name:'ATF',system:'Transmission'}, {name:'Coolant',system:'Cooling'},
-  {name:'Brake Fluid',system:'Brake'}, {name:'Power Steering Fluid',system:'Steering'},
-  {name:'Differential Oil',system:'Transmission'}, {name:'Washer Fluid',system:'Air Conditioning'}
+  {name:'Engine Oil',system:'Engine'},
+  {name:'ATF',system:'Transmission'},
+  {name:'Coolant',system:'Cooling'},
+  {name:'Brake Fluid',system:'Brake'}
 ];
+
+const CAR_SYSTEM_MAP=[
+  {id:'engine',number:1,name:'Engine',formSystem:'Engine',accent:'#ff3b3b',description:'Combustion, lubrication, ignition, timing and engine-mounted components.',match:r=>r.system==='Engine'&&!/(air filter|throttle|butterfly|intake)/i.test(r.part||'')},
+  {id:'air_intake',number:2,name:'Air Intake',formSystem:'Engine',accent:'#ff8a1f',description:'Engine air filter, throttle body and intake-side maintenance.',match:r=>/(air filter|throttle|butterfly|intake)/i.test(r.part||'')},
+  {id:'battery',number:3,name:'Battery',formSystem:'Electrical',accent:'#38d86b',description:'Starting battery and battery-related service records.',match:r=>/battery/i.test(r.part||'')},
+  {id:'cooling',number:4,name:'Cooling System',formSystem:'Cooling',accent:'#2687ff',description:'Radiator, coolant, thermostat, water pump and cooling fan components.',match:r=>r.system==='Cooling'||r.system==='Cooling / Electrical'||/(radiator|coolant|water pump|thermostat)/i.test(r.part||'')},
+  {id:'fuel',number:5,name:'Fuel System',formSystem:'Fuel',accent:'#8e4dff',description:'Fuel pump, injectors, filter and fuel-delivery maintenance.',match:r=>r.system==='Fuel'||/fuel/i.test(r.part||'')},
+  {id:'transmission',number:6,name:'Transmission',formSystem:'Transmission',accent:'#ff7b1d',description:'Automatic transmission and ATF / gear-oil related service.',match:r=>r.system==='Transmission'||/(ATF|transmission|gear oil)/i.test(r.part||'')},
+  {id:'exhaust',number:7,name:'Exhaust System',formSystem:'Exhaust',accent:'#f4c31f',description:'Exhaust piping, catalytic converter and muffler records.',match:r=>r.system==='Exhaust'||/(exhaust|muffler|catalytic)/i.test(r.part||'')},
+  {id:'brake',number:8,name:'Brake System',formSystem:'Brake',accent:'#51db61',description:'Pads, rotors, brake fluid and braking-system service.',match:r=>r.system==='Brake'||/brake/i.test(r.part||'')},
+  {id:'steering',number:9,name:'Steering System',formSystem:'Steering',accent:'#ff3caf',description:'Steering rack, tie rods, rack ends and steering-related parts.',match:r=>r.system==='Steering'||/(steering|tie rod|rack end|steering rack)/i.test(r.part||'')},
+  {id:'suspension',number:10,name:'Suspension System',formSystem:'Wheel / Suspension',accent:'#19cde8',description:'Shocks, bearings, lower arms, ball joints, bushings and suspension parts.',match:r=>String(r.system||'').includes('Suspension')||/(shock|bearing|suspension|lower arm|ball joint|stabilizer|bushing)/i.test(r.part||'')},
+  {id:'tires',number:11,name:'Tires',formSystem:'Tires',accent:'#6c5cff',description:'Tires, rotation and tire lifecycle records.',match:r=>r.system==='Tires'||/tire/i.test(r.part||'')},
+  {id:'electrical',number:12,name:'Electrical System',formSystem:'Electrical',accent:'#25b9e6',description:'Alternator, starter, charging and other electrical components.',match:r=>r.system==='Electrical'||/(alternator|starter|electrical)/i.test(r.part||'')}
+];
+
+function systemMapRecords(def){
+  return visibleHistory().filter(record=>def.match(record));
+}
+function systemMapLife(records){
+  const values=records.map(record=>lifeMetrics(record).remaining).filter(value=>value!==null&&Number.isFinite(value));
+  if(!values.length)return null;
+  return Math.min(...values);
+}
+function systemMapThumb(records){
+  const withImage=records.find(record=>resolvePartImage(record));
+  return withImage?resolvePartImage(withImage):FALLBACK_PART_IMAGE;
+}
+function renderSystemsMap(){
+  const grid=document.getElementById('systemMapGrid');
+  if(!grid)return;
+  let trackedSystems=0;
+  grid.innerHTML=CAR_SYSTEM_MAP.map(def=>{
+    const records=systemMapRecords(def);
+    if(records.length)trackedSystems++;
+    const minLife=systemMapLife(records);
+    const critical=records.filter(record=>{
+      const life=lifeMetrics(record).remaining;
+      return life!==null&&life<=20;
+    }).length;
+    const thumb=systemMapThumb(records);
+    const status=minLife===null?'No lifecycle data':`${Math.max(0,minLife).toFixed(0)}% min life`;
+    const meta=records.length?`${records.length} tracked part${records.length===1?'':'s'}${critical?` · ${critical} due soon`:''}`:'No tracked part yet';
+    return `<button class="system-map-card" style="--system-accent:${def.accent}" onclick="openSystemExplorer('${def.id}')">
+      <span class="system-map-number">${def.number}</span>
+      <span class="system-map-thumb"><img src="${thumb}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_PART_IMAGE"></span>
+      <span class="system-map-copy">
+        <strong>${esc(def.name)}</strong>
+        <small>${esc(def.description)}</small>
+        <span class="system-map-meta">${esc(meta)}</span>
+      </span>
+      <span class="system-map-life" style="color:${lifeColor(minLife)}">${esc(status)}</span>
+      <span class="system-map-chevron">›</span>
+    </button>`;
+  }).join('');
+  const tracked=document.getElementById('systemsTrackedCount');
+  if(tracked)tracked.textContent=`${trackedSystems}/12 systems with records`;
+}
+function openSystemExplorer(systemId){
+  const def=CAR_SYSTEM_MAP.find(item=>item.id===systemId);
+  if(!def)return;
+  const records=systemMapRecords(def).sort((a,b)=>{
+    const la=lifeMetrics(a).remaining,lb=lifeMetrics(b).remaining;
+    return (la??999)-(lb??999);
+  });
+  const modal=document.getElementById('systemExplorerModal');
+  document.getElementById('systemExplorerKicker').textContent=`System ${def.number} · ${records.length} tracked`;
+  document.getElementById('systemExplorerTitle').textContent=def.name;
+  document.getElementById('systemExplorerDescription').textContent=def.description;
+  const minLife=systemMapLife(records);
+  const refBudget=records.reduce((sum,r)=>sum+Number(r.referencePrice||0),0);
+  document.getElementById('systemExplorerSummary').innerHTML=`
+    <div><small>Tracked parts</small><strong>${records.length}</strong></div>
+    <div><small>Minimum life</small><strong style="color:${lifeColor(minLife)}">${minLife===null?'—':minLife.toFixed(0)+'%'}</strong></div>
+    <div><small>Reference budget</small><strong>${refBudget>0?'฿'+fmt(refBudget):'—'}</strong></div>`;
+  document.getElementById('systemExplorerList').innerHTML=records.length?records.map(record=>{
+    const metrics=lifeMetrics(record),life=metrics.remaining,source=resolvePartImage(record)||FALLBACK_PART_IMAGE;
+    const price=Number(record.referencePrice||0);
+    const id=JSON.stringify(record.id);
+    return `<button class="system-explorer-row" onclick="closeSystemExplorer();openPartDetails(${id})">
+      <span class="system-explorer-thumb"><img src="${source}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_PART_IMAGE"></span>
+      <span class="system-explorer-part">
+        <strong>${esc(record.part)}</strong>
+        <small>${record.km?fmt(record.km)+' km':'No service km'} · ${dateFmt(record.date)}</small>
+      </span>
+      <span class="system-explorer-life" style="color:${lifeColor(life)}">${life===null?'—':life.toFixed(0)+'%'}</span>
+      <span class="system-explorer-price">${price>0?'฿'+fmt(price):'—'}</span>
+      <span class="system-map-chevron">›</span>
+    </button>`;
+  }).join(''):'<div class="empty">ยังไม่มี Part ในระบบนี้ กด Add service record เพื่อเพิ่มรายการได้เลย.</div>';
+  const add=document.getElementById('systemExplorerAdd');
+  add.onclick=()=>{closeSystemExplorer();openHistoryModal();fSystem.value=def.formSystem;};
+  modal.classList.add('show');
+}
+function closeSystemExplorer(){
+  document.getElementById('systemExplorerModal')?.classList.remove('show');
+}
+
 const ALERT_COOLDOWN_MS=7*24*60*60*1000;
 let editingId=null, editingSymptomId=null, replacementMode=false, detailRecordId=null;
 
@@ -30,16 +129,28 @@ function renderFluids(){fluidGrid.innerHTML=fluidRows().map(({catalog,record})=>
 function setFluidCondition(id,val){db.fluidState[id]={...(db.fluidState[id]||{}),condition:val};persist();renderAll()}
 function setFluidLeak(id,val){db.fluidState[id]={...(db.fluidState[id]||{}),leak:val};persist();renderAll()}
 function prefillFluid(name,system){openHistoryModal();fPart.value=name;fSystem.value=system;fEventType.value='fluid_change'}
-function renderPartsLife(){const arr=partRows().filter(r=>lifeOf(r)!==null).sort((a,b)=>lifeOf(a)-lifeOf(b));partsLifeCount.textContent=`${arr.length} monitored`;partsLifeGrid.innerHTML=arr.length?arr.map(r=>{const m=lifeMetrics(r);return `<div class="life-card"><div class="life-card-top"><div><div class="life-card-name">${esc(r.part)}</div><div class="life-card-system">${esc(r.system||'')}</div></div><span class="verify">${statusText(m.remaining)}</span></div><div class="life-big" style="color:${lifeColor(m.remaining)}">${m.remaining.toFixed(0)}<small>%</small></div><div class="bar"><div class="fill" style="width:${m.remaining}%;background:${lifeColor(m.remaining)}"></div></div><div class="row-sub" style="margin-top:9px">${m.remainingKm===null?'No mileage forecast':m.remainingKm<=0?'Overdue by mileage':fmt(Math.max(0,m.remainingKm))+' km remaining'}</div></div>`}).join(''):'<div class="empty">No part with complete lifecycle data.</div>'}
-
-function renderSymptoms(){
-  const active=db.symptoms.filter(symptom=>symptom.status!=='Resolved').sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-  symptomList.innerHTML=active.length?active.map(symptom=>{
-    const recurrence=symptomRecurrence(symptom);
-    return `<div class="symptom-row"><div class="symptom-top"><div><div class="row-title">${esc(symptom.name)}</div><div class="row-sub">${esc(symptom.system)} · Severity ${symptom.severity}/5 · ${esc(symptom.status)}</div></div><span class="symptom-count">${recurrence}×</span></div><div class="symptom-meta"><span>${dateFmt(symptom.date)}</span><span>${fmt(symptom.km)} km</span><span>${recurrence} occurrence(s)</span></div><div class="row-actions"><button onclick="editSymptom('${symptom.id}')">Edit</button><button onclick="resolveSymptom('${symptom.id}')">Resolve</button></div></div>`;
-  }).join(''):'<div class="empty">No active symptom recorded.</div>';
-  const findings=diagnostics();
-  diagnosticList.innerHTML=findings.length?findings.map(item=>`<div class="symptom-row"><div class="row-title">${esc(item.title)}</div><div class="symptom-diagnostic">${esc(item.message)}</div></div>`).join(''):'<div class="empty">Need repeated symptom data to identify a pattern.</div>';
+function renderPartsLife(){
+  const arr=partRows().filter(r=>lifeOf(r)!==null).sort((a,b)=>lifeOf(a)-lifeOf(b));
+  partsLifeCount.textContent=`${arr.length} monitored`;
+  partsLifeGrid.innerHTML=arr.length?arr.map(r=>{
+    const m=lifeMetrics(r);
+    const source=resolvePartImage(r)||FALLBACK_PART_IMAGE;
+    return `<div class="life-card">
+      <div class="life-card-top">
+        <div class="life-card-identity">
+          <div class="life-card-image"><img src="${source}" alt="${esc(r.part)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_PART_IMAGE"></div>
+          <div>
+            <div class="life-card-name">${esc(r.part)}</div>
+            <div class="life-card-system">${esc(r.system||'')}</div>
+          </div>
+        </div>
+        <span class="verify">${statusText(m.remaining)}</span>
+      </div>
+      <div class="life-big" style="color:${lifeColor(m.remaining)}">${m.remaining.toFixed(0)}<small>%</small></div>
+      <div class="bar"><div class="fill" style="width:${m.remaining}%;background:${lifeColor(m.remaining)}"></div></div>
+      <div class="row-sub" style="margin-top:9px">${m.remainingKm===null?'No mileage forecast':m.remainingKm<=0?'Overdue by mileage':fmt(Math.max(0,m.remainingKm))+' km remaining'}</div>
+    </div>`;
+  }).join(''):'<div class="empty">No part with complete lifecycle data.</div>';
 }
 function populateSystemSelect(){sSystem.innerHTML=SYSTEMS.filter(x=>x!=='Fluids').map(x=>`<option>${x}</option>`).join('')}
 function openSymptomModal(prefill={}){editingSymptomId=null;populateSystemSelect();symptomModalTitle.textContent='Add Symptom';sDate.value=prefill.date||todayIso();sKm.value=prefill.km??db.car.km;sSystem.value=prefill.system||'Engine';sName.value=prefill.name||'';sSeverity.value=prefill.severity||3;sStatus.value=prefill.status||'Active';sEngineState.value='';sRpm.value='';sCoolantTemp.value='';sAtfTemp.value='';sAc.value='';sGear.value='';sSpeed.value='';sAmbient.value='';sNote.value=prefill.note||'';symptomModal.classList.add('show')}
@@ -55,7 +166,7 @@ function pmLastText(pm){const a=[];if(pm.historyKm)a.push(fmt(pm.historyKm)+' km
 function pmPlanText(pm){const a=[];if(pm.planKm)a.push(fmt(pm.planKm)+' km');const d=pm.planDate||pm.derivedPlanDate;if(d)a.push(dateFmt(d)+(pm.derivedPlanDate&&!pm.planDate?' (derived)':''));if(pm.planDateRaw)a.push('raw '+pm.planDateRaw);return a.length?a.join(' · '):'—'}
 function renderPmSchedule(){
   if(typeof pmScheduleBody==='undefined'||!pmScheduleBody)return;
-  const rows=PM_SCHEDULE.map(pm=>{const r=pmRecord(pm),m=r?lifeMetrics(r):{remaining:null},img=r&&hasDisplayImage(r),rep=pm.needsSpecificImage&&!r?.customImage;const st=img?statusText(m.remaining):'NO IMAGE';const imgLabel=pm.needsVerify?'VERIFY NAME':img?(rep?'REPRESENTATIVE':'READY'):'IMAGE NEEDED';const imgClass=pm.needsVerify?'pm-verify':img?(rep?'pm-warn':'pm-ok'):'pm-missing';const priceText=Number(pm.referencePrice||0)>0?'฿'+fmt(pm.referencePrice):pm.pmKey==='fuel_filter'?'Included':pm.pmKey==='prostate'?'—':'฿0';return `<tr><td><div class="pm-main">${esc(pm.part)}</div><div class="pm-sub">Excel: ${esc(pm.sourceLabel)}</div></td><td>${esc(pm.group)}</td><td>${esc(pmLastText(pm))}</td><td>${esc(pmPlanText(pm))}</td><td><div class="pm-price">${esc(priceText)}</div><div class="pm-sub">${esc(pm.priceScope||'')}</div></td><td><span class="pm-pill ${img?'pm-ok':'pm-missing'}">${esc(st)}</span></td><td><span class="pm-pill ${imgClass}">${imgLabel}</span></td></tr>`}).join('');
+  const rows=PM_SCHEDULE.map(pm=>{const r=pmRecord(pm),m=r?lifeMetrics(r):{remaining:null},img=r&&hasDisplayImage(r),rep=pm.needsSpecificImage&&!r?.customImage;const st=img?statusText(m.remaining):'NO IMAGE';const imgLabel=pm.needsVerify?'VERIFY NAME':img?(rep?'REPRESENTATIVE':'READY'):'IMAGE NEEDED';const imgClass=pm.needsVerify?'pm-verify':img?(rep?'pm-warn':'pm-ok'):'pm-missing';const priceText=Number(pm.referencePrice||0)>0?'฿'+fmt(pm.referencePrice):pm.pmKey==='fuel_filter'?'Included':'฿0';return `<tr><td><div class="pm-main">${esc(pm.part)}</div><div class="pm-sub">Excel: ${esc(pm.sourceLabel)}</div></td><td>${esc(pm.group)}</td><td>${esc(pmLastText(pm))}</td><td>${esc(pmPlanText(pm))}</td><td><div class="pm-price">${esc(priceText)}</div><div class="pm-sub">${esc(pm.priceScope||'')}</div></td><td><span class="pm-pill ${img?'pm-ok':'pm-missing'}">${esc(st)}</span></td><td><span class="pm-pill ${imgClass}">${imgLabel}</span></td></tr>`}).join('');
   pmScheduleBody.innerHTML=rows;
   const ready=PM_SCHEDULE.filter(p=>{const r=pmRecord(p);return r&&hasDisplayImage(r)}).length,missing=PM_SCHEDULE.length-ready,specific=PM_SCHEDULE.filter(p=>p.needsSpecificImage).length;
   pmSourceSummary.textContent=`${PM_SCHEDULE.length} PM rows · ${ready} image-backed`;
@@ -150,7 +261,7 @@ function mobileNavigate(tab,button){
   if(button?.dataset?.mobileNav)button.classList.add('active');
 }
 
-function renderAll(){refreshAlerts();const o=renderHealth();renderLegacyKpi(o);renderAlerts();renderForecast();renderFluids();renderPartsLife();renderSymptoms();renderNextBudget();renderPmSchedule();renderHistory();renderMobileDashboard();heroKm.textContent=fmt(db.car.km);persist()}
+function renderAll(){refreshAlerts();const o=renderHealth();renderLegacyKpi(o);renderAlerts();renderForecast();renderSystemsMap();renderFluids();renderPartsLife();renderNextBudget();renderHistory();renderMobileDashboard();heroKm.textContent=fmt(db.car.km);persist()}
 function render(){renderAll()}
 
 function resetHistoryExtraFields(){
@@ -159,13 +270,16 @@ function resetHistoryExtraFields(){
 }
 function openHistoryModal(){
   editingId=null;replacementMode=false;historyModalTitle.textContent='Add service record';
-  ['fPart','fSystem','fDate','fKm','fPrice','fIntervalKm','fIntervalMonths','fNote'].forEach(id=>document.getElementById(id).value='');
+  ['fPart','fSystem','fDate','fKm','fPrice','fReferencePrice','fIntervalKm','fIntervalMonths','fNote'].forEach(id=>document.getElementById(id).value='');
   resetHistoryExtraFields();fDate.value=todayIso();fKm.value=db.car.km;fImage.value='';fEventType.value='part_replacement';historyModal.classList.add('show');
 }
 function closeHistoryModal(){replacementMode=false;historyModal.classList.remove('show')}
 function fillHistoryForm(r,{replacement=false}={}){
+  const refInput=document.getElementById('fReferencePrice');
   fPart.value=r.part||'';fSystem.value=r.system||'';fDate.value=replacement?todayIso():(r.date||'');fKm.value=replacement?db.car.km:(r.km||'');
-  fPrice.value=replacement?'':(recordActualCost(r)||'');fIntervalKm.value=r.intervalKm||'';fIntervalMonths.value=r.intervalMonths||'';fNote.value=r.note||'';
+  fPrice.value=replacement?'':(recordActualCost(r)||'');
+  if(refInput)refInput.value=(Object.prototype.hasOwnProperty.call(r,'customReferencePrice')?Number(r.customReferencePrice||0):Number(r.referencePrice||0))||'';
+  fIntervalKm.value=r.intervalKm||'';fIntervalMonths.value=r.intervalMonths||'';fNote.value=r.note||'';
   fEventType.value=r.eventType||'part_replacement';fImage.value='';fWorkshop.value=r.workshop||'';fPartBrand.value=r.partBrand||'';fPartNumber.value=r.partNumber||'';fWarrantyMonths.value=r.warrantyMonths||'';fReceipt.value='';
 }
 function editHistory(id){const r=db.history.find(x=>x.id===id);if(!r)return;editingId=id;replacementMode=false;historyModalTitle.textContent='Edit service record';fillHistoryForm(r);historyModal.classList.add('show')}
@@ -176,8 +290,11 @@ async function saveHistory(){
   let image=old?.image||'',customImage=!!old?.customImage;if(fImage.files[0]){image=await fileData(fImage.files[0]);customImage=true}
   let receiptImage=old?.receiptImage||'';if(fReceipt.files[0])receiptImage=await fileData(fReceipt.files[0]);
   const actualCost=Number(fPrice.value||0);
+  const customReferencePrice=Number(document.getElementById('fReferencePrice')?.value||0);
   const rec={...(old||{}),id:editingId||Date.now(),part,system:fSystem.value.trim(),date:fDate.value,km:Number(fKm.value||0),actualCost,intervalKm:Number(fIntervalKm.value||0),intervalMonths:Number(fIntervalMonths.value||0),note:fNote.value.trim(),image,customImage,imageKey:old?.imageKey||imageKeyForPartName(part)||'',needsVerify:false,eventType:fEventType.value,workshop:fWorkshop.value.trim(),partBrand:fPartBrand.value.trim(),partNumber:fPartNumber.value.trim(),warrantyMonths:Number(fWarrantyMonths.value||0),receiptImage};
-  rec.price=rec.pmTracked?(actualCost>0?actualCost:Number(old?.price??rec.referencePrice??0)):actualCost;
+  rec.customReferencePrice=Number.isFinite(customReferencePrice)&&customReferencePrice>=0?customReferencePrice:0;
+  rec.referencePrice=rec.customReferencePrice;
+  rec.price=rec.pmTracked?(actualCost>0?actualCost:rec.referencePrice):actualCost;
   if(rec.pmTracked&&old){if(rec.intervalKm>0&&rec.km>0)rec.pmPlanKm=rec.km+rec.intervalKm;if(rec.intervalMonths>0&&rec.date)rec.pmPlanDate=addMonthsIso(rec.date,rec.intervalMonths);rec.pmDerivedPlanDate='';rec.pmPlanDateRaw=null}
   const createEvent=!editingId||replacementMode;
   if(editingId)db.history=db.history.map(x=>x.id===editingId?rec:x);else db.history.unshift(rec);

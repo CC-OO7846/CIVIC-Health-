@@ -20,6 +20,15 @@ function migrateServiceFields(record){
     const inferred=recordActualCost(target);
     if(inferred>0)target.actualCost=inferred;
   }
+  if(target.pmKey==='prostate'||/prostate/i.test(String(target.part||''))||/prostate/i.test(String(target.pmSourceLabel||''))){
+    target.pmKey='suspension_parts';
+    target.part='Suspension Parts Set';
+    target.system=target.system&&target.system!=='Unverified'?target.system:'Wheel / Suspension';
+    target.imageKey='suspension_parts';
+    target.needsVerify=false;
+    if(!target.eventType)target.eventType='part_replacement';
+    if(!target.priceScope)target.priceScope='User editable — tap Edit to set your own price';
+  }
   if(target.workshop===undefined)target.workshop='';
   if(target.partBrand===undefined)target.partBrand='';
   if(target.partNumber===undefined)target.partNumber='';

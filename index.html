@@ -110,7 +110,7 @@
     <div class="mobile-quick">
       <button onclick="openHistoryModal()"><b>＋</b>Add Service</button>
       <button onclick="openCarModal()"><b>⌁</b>Update KM</button>
-      <button onclick="document.getElementById('history').scrollIntoView({behavior:'smooth'})"><b>⚙</b>Parts</button>
+      <button onclick="document.getElementById('systemsMap').scrollIntoView({behavior:'smooth'})"><b>⌘</b>Systems</button>
       <button onclick="exportDatabaseBackup()"><b>⇩</b>Backup</button>
     </div>
   </div>
@@ -152,12 +152,11 @@
 <section class="section vh-shell" id="vehicleHealth">
   <div class="vh-nav">
     <button onclick="document.getElementById('vehicleHealth').scrollIntoView({behavior:'smooth'})">Health</button>
+    <button onclick="document.getElementById('systemsMap').scrollIntoView({behavior:'smooth'})">Systems Map</button>
     <button onclick="document.getElementById('fluids').scrollIntoView({behavior:'smooth'})">Fluids & Parts</button>
-    <button onclick="document.getElementById('symptoms').scrollIntoView({behavior:'smooth'})">Symptoms</button>
     <button onclick="document.getElementById('history').scrollIntoView({behavior:'smooth'})">Repair History</button>
     <button onclick="document.getElementById('nextBudget').scrollIntoView({behavior:'smooth'})">Next Budget</button>
     <button onclick="document.getElementById('localDatabase').scrollIntoView({behavior:'smooth'})">Local DB</button>
-    <button onclick="document.getElementById('pmSchedule').scrollIntoView({behavior:'smooth'})">PM Excel</button>
   </div>
 
   <div class="section-head">
@@ -190,6 +189,36 @@
   </div>
 </section>
 
+<section class="section systems-map-section" id="systemsMap">
+  <div class="section-head systems-map-heading">
+    <div>
+      <div class="label">Interactive vehicle anatomy</div>
+      <h2>Car Systems Map.</h2>
+    </div>
+    <p>ดูรถเป็นระบบเหมือน exploded list — แตะระบบเพื่อดู Part ที่มีอยู่จริงในฐานข้อมูล, Remaining Life, ราคาอ้างอิง และประวัติซ่อม.</p>
+  </div>
+
+  <div class="systems-map-shell">
+    <div class="systems-map-visual">
+      <img src="./systems-map.webp" alt="Honda Civic ES car systems map" loading="lazy" decoding="async">
+      <div class="systems-map-visual-caption">
+        <div><span class="systems-map-pulse"></span> Honda Civic ES · K20A</div>
+        <small>12 vehicle systems · tap a card below to explore</small>
+      </div>
+    </div>
+
+    <div class="systems-list-head">
+      <div>
+        <small>Vehicle architecture</small>
+        <h3>All Systems</h3>
+      </div>
+      <span id="systemsTrackedCount">—</span>
+    </div>
+
+    <div id="systemMapGrid" class="system-map-grid"></div>
+  </div>
+</section>
+
 <section class="section" id="fluids">
   <div class="section-head">
     <div><div class="label">Consumable lifecycle</div><h2>Fluids + Parts Life.</h2></div>
@@ -205,22 +234,6 @@
   </div>
 </section>
 
-<section class="section" id="symptoms">
-  <div class="section-head">
-    <div><div class="label">Symptom monitoring</div><h2>What the car is telling you.</h2></div>
-    <p>บันทึกอาการพร้อมเงื่อนไขที่เกิด เช่น cold/warm, RPM, ATF temperature, gear และ A/C เพื่อดู recurrence และ pattern โดยไม่สรุปเกินข้อมูล.</p>
-  </div>
-  <div class="vh-two">
-    <div class="vh-card">
-      <div class="vh-card-head"><h3>Active / Monitoring Symptoms</h3><button class="btn primary" onclick="openSymptomModal()">+ Add Symptom</button></div>
-      <div id="symptomList" class="symptom-list"></div>
-    </div>
-    <div class="vh-card">
-      <div class="vh-card-head"><h3>Smart Diagnostic</h3><small>Rule based</small></div>
-      <div id="diagnosticList" class="symptom-list"></div>
-    </div>
-  </div>
-</section>
 
 
 
@@ -303,25 +316,6 @@
   </div>
 </section>
 
-<section class="section" id="pmSchedule">
-  <div class="section-head">
-    <div><div class="label">PM source · Civic es(3).xlsx</div><h2>PM Schedule + Image Map.</h2></div>
-    <p>ใช้ประวัติ PM และ Plan จากไฟล์ Excel เป็น source หลัก โดย Status/Health ด้านบนจะคำนวณเฉพาะ PM item ที่มีรูป Generated หรือรูปที่คุณอัปโหลดเอง.</p>
-  </div>
-  <div class="pm-source-card">
-    <div class="vh-card-head"><h3>Excel PM Source</h3><small id="pmSourceSummary">—</small></div>
-    <div class="pm-summary" id="pmSummaryChips"></div>
-    <div class="pm-table-wrap"><table class="pm-table"><thead><tr><th>PM item</th><th>Group</th><th>Last PM</th><th>Plan</th><th>Ref. Price</th><th>Status</th><th>Image</th></tr></thead><tbody id="pmScheduleBody"></tbody></table></div>
-  </div>
-  <div class="pm-source-card">
-    <div class="vh-card-head"><h3>Images To Add / Improve</h3><small>Derived from Excel rows</small></div>
-    <div id="pmImageNeeds" class="pm-needs-grid"></div>
-  </div>
-  <div class="pm-source-card">
-    <div class="vh-card-head"><h3>Source Notes</h3><small>No silent correction</small></div>
-    <div id="pmSourceIssues" class="symptom-list"></div>
-  </div>
-</section>
 
 <section class="section" id="history">
   <div class="section-head">
@@ -406,6 +400,7 @@
       <label>Repair / replace date<input id="fDate" type="date"></label>
       <label>Odometer at service<input id="fKm" type="number" min="0"></label>
       <label>Actual paid / service cost<input id="fPrice" type="number" min="0" inputmode="decimal" placeholder="0"></label>
+      <label>Reference price / planning budget<input id="fReferencePrice" type="number" min="0" inputmode="decimal" placeholder="0"></label>
       <label>Service type<select id="fEventType"><option value="part_replacement">Part Replacement</option><option value="preventive">Preventive Maintenance</option><option value="corrective">Corrective Repair</option><option value="fluid_change">Fluid Change</option><option value="inspection">Inspection</option><option value="breakdown">Breakdown</option></select></label>
       <label>Workshop / shop<input id="fWorkshop" placeholder="Optional"></label>
       <label>Brand<input id="fPartBrand" placeholder="Optional"></label>
@@ -438,7 +433,7 @@
           <div><small>Last service</small><strong id="partDetailDate">—</strong></div>
           <div><small>Mileage</small><strong id="partDetailKm">—</strong></div>
           <div><small>Actual paid</small><strong id="partDetailActual">—</strong></div>
-          <div><small>Reference</small><strong id="partDetailReference">—</strong></div>
+          <div><small>Reference budget</small><strong id="partDetailReference">—</strong></div>
           <div><small>Workshop</small><strong id="partDetailWorkshop">—</strong></div>
           <div><small>Brand</small><strong id="partDetailBrand">—</strong></div>
           <div><small>Part number</small><strong id="partDetailNumber">—</strong></div>
@@ -452,6 +447,26 @@
       <button class="btn danger-action" id="partDetailDelete">Delete</button>
       <button class="btn" id="partDetailEdit">Edit</button>
       <button class="btn primary" id="partDetailReplace">Record replacement</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal" id="systemExplorerModal" role="dialog" aria-modal="true" aria-labelledby="systemExplorerTitle">
+  <div class="modal-box system-explorer-box">
+    <div class="part-detail-head">
+      <div>
+        <div class="modal-kicker" id="systemExplorerKicker">Vehicle system</div>
+        <h3 id="systemExplorerTitle">System</h3>
+      </div>
+      <button class="detail-close" onclick="closeSystemExplorer()" aria-label="Close">×</button>
+    </div>
+    <p class="system-explorer-description" id="systemExplorerDescription"></p>
+    <div class="system-explorer-summary" id="systemExplorerSummary"></div>
+    <div class="system-explorer-list" id="systemExplorerList"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeSystemExplorer()">Close</button>
+      <button class="btn primary" id="systemExplorerAdd">+ Add service record</button>
     </div>
   </div>
 </div>

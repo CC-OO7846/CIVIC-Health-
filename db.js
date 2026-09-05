@@ -53,10 +53,11 @@ function applyPmCatalog(target,{seedMissing=true}={}){
       history.push(record);
     }
     if(!record)return;
+    const customReference=Object.prototype.hasOwnProperty.call(record,'customReferencePrice')?Number(record.customReferencePrice||0):null;
     const metadata={
       pmKey:pm.pmKey,pmTracked:true,pmSource:'Civic es(3).xlsx',pmGroup:pm.group,pmSourceLabel:pm.sourceLabel,
       pmSourceIssue:pm.sourceIssue||'',pmImageRequest:pm.imageRequest||'',pmNeedsSpecificImage:!!pm.needsSpecificImage,
-      referencePrice:Number(pm.referencePrice||0),priceScope:pm.priceScope||'',priceSource:pm.priceSource||''
+      referencePrice:customReference!==null&&Number.isFinite(customReference)?customReference:Number(pm.referencePrice||0),priceScope:pm.priceScope||'',priceSource:pm.priceSource||''
     };
     Object.assign(record,metadata);
     if(record.pmPlanDateRaw===undefined)record.pmPlanDateRaw=pm.planDateRaw??null;
