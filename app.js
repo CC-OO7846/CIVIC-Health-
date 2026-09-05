@@ -72,7 +72,7 @@ function renderHistory(){
   historyGrid.innerHTML=records.map(record=>{
     const metrics=lifeMetrics(record),life=metrics.remaining,status=statusText(life),id=JSON.stringify(record.id);
     const source=resolvePartImage(record);
-    const image=source?`<img src="${source}" alt="${esc(record.part)}" loading="lazy" decoding="async">`:'<div class="photo-placeholder"><strong>+</strong><small>Add photo</small></div>';
+    const image=source?`<img src="${source}" alt="${esc(record.part)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_PART_IMAGE">`:'<div class="photo-placeholder"><strong>+</strong><small>Add photo</small></div>';
     const reference=record.pmTracked?Number(record.referencePrice??record.price??0):0;
     const actual=recordActualCost(record);
     const displayCost=actual>0?actual:reference;
@@ -190,7 +190,7 @@ function removeHistory(id){if(!confirm('ลบประวัติรายก�
 function openPartDetails(id){
   const r=db.history.find(x=>x.id===id);if(!r)return;detailRecordId=id;
   partDetailTitle.textContent=r.part||'Part Detail';partDetailSystem.textContent=r.system||'Service record';
-  const src=resolvePartImage(r);partDetailImage.innerHTML=src?`<img src="${src}" alt="${esc(r.part)}">`:'<div class="photo-placeholder"><strong>+</strong><small>No image</small></div>';
+  const src=resolvePartImage(r);partDetailImage.innerHTML=src?`<img src="${src}" alt="${esc(r.part)}" onerror="this.onerror=null;this.src=FALLBACK_PART_IMAGE">`:'<div class="photo-placeholder"><strong>+</strong><small>No image</small></div>';
   partDetailDate.textContent=dateFmt(r.date);partDetailKm.textContent=r.km?fmt(r.km)+' km':'—';
   const actual=recordActualCost(r),reference=Number(r.referencePrice||0);partDetailActual.textContent=actual>0?'฿'+fmt(actual):'—';partDetailReference.textContent=reference>0?'฿'+fmt(reference):'—';
   partDetailWorkshop.textContent=r.workshop||'—';partDetailBrand.textContent=r.partBrand||'—';partDetailNumber.textContent=r.partNumber||'—';

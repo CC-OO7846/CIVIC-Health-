@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME='clean-garage-v10.17.0-r1';
+const CACHE_NAME='clean-garage-v10.17.1-imagefix';
 const CORE_ASSETS=[
   "./",
   "./index.html",
@@ -18,36 +18,7 @@ const CORE_ASSETS=[
   "./data/pm-data.js",
   "./car-health-icon-v2-180.png",
   "./car-health-icon-v2-192.png",
-  "./car-health-icon-v2-512.png",
-  "./images/parts/alternator.webp",
-  "./images/parts/atf.webp",
-  "./images/parts/battery.webp",
-  "./images/parts/belt_pulley_bearing.webp",
-  "./images/parts/brake_disc.webp",
-  "./images/parts/brake_fluid.webp",
-  "./images/parts/brake_pad.webp",
-  "./images/parts/cabin_air_filter.webp",
-  "./images/parts/coolant.webp",
-  "./images/parts/drive_belt.webp",
-  "./images/parts/drive_belt_tensioner.webp",
-  "./images/parts/engine_air_filter.webp",
-  "./images/parts/engine_mount.webp",
-  "./images/parts/engine_oil.webp",
-  "./images/parts/fan_motor.webp",
-  "./images/parts/fuel_injector.webp",
-  "./images/parts/fuel_pump.webp",
-  "./images/parts/radiator.webp",
-  "./images/parts/shock_absorber.webp",
-  "./images/parts/spark_plug.webp",
-  "./images/parts/starter_motor.webp",
-  "./images/parts/thermostat.webp",
-  "./images/parts/throttle_body.webp",
-  "./images/parts/timing_chain.webp",
-  "./images/parts/tire.webp",
-  "./images/parts/unverified.svg",
-  "./images/parts/valve_train.webp",
-  "./images/parts/water_pump.webp",
-  "./images/parts/wheel_bearing.webp"
+  "./car-health-icon-v2-512.png"
 ];
 
 self.addEventListener('install',event=>{
