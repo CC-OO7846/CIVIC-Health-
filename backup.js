@@ -13,7 +13,7 @@ function parseBackupText(text){
 
 function createBackupPayload(database,exportedAt){
   const stamp=String(exportedAt||database?.settings?.lastBackupAt||'');
-  const appVersion=typeof APP_VERSION==='string'?APP_VERSION:'10.18.6';
+  const appVersion=typeof APP_VERSION==='string'?APP_VERSION:'10.18.7';
   return {
     format:BACKUP_FORMAT,
     version:BACKUP_FORMAT_VERSION,

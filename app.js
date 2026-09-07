@@ -2,7 +2,7 @@
 
 const KEY='clean-garage-v10-vehicle-health';
 const LEGACY_KEYS=['clean-garage-v8-parts-with-images','clean-garage-v7-single-hero-history','car-maintenance-life-v4-simple'];
-const APP_VERSION='10.18.6';
+const APP_VERSION='10.18.7';
 const SCHEMA_VERSION=17;
 const STORAGE_LIMITS=Object.freeze({
   uploadInputBytes:12*1024*1024,
@@ -153,13 +153,11 @@ function renderMobileDashboard(){
   else{attentionTitle.textContent='No critical item';attentionDetail.textContent='Maintenance status is up to date';attention?.classList.remove('has-alert');}
 }
 function mobileNavigate(tab,button){
-  const target={
-    home:'mobileHome',
-    health:'vehicleHealth',
-    budget:'nextBudget',
-    more:'localDatabase'
-  }[tab];
-  if(target)document.getElementById(target)?.scrollIntoView({behavior:'smooth',block:'start'});
+  if(tab==='home')window.scrollTo({top:0,behavior:'smooth'});
+  else{
+    const target={health:'vehicleHealth',budget:'nextBudget',more:'localDatabase'}[tab];
+    if(target)document.getElementById(target)?.scrollIntoView({behavior:'smooth',block:'start'});
+  }
   document.querySelectorAll('.mobile-tabbar button[data-mobile-nav]').forEach(b=>b.classList.remove('active'));
   if(button?.dataset?.mobileNav)button.classList.add('active');
 }
