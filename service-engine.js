@@ -3,7 +3,7 @@
 
 function recordActualCost(record){
   if(!record||typeof record!=='object')return 0;
-  if(Object.hasOwn(record,'actualCost')){
+  if(Object.prototype.hasOwnProperty.call(record,'actualCost')){
     const explicit=Number(record.actualCost||0);
     return Number.isFinite(explicit)&&explicit>0?explicit:0;
   }
@@ -28,6 +28,13 @@ function migrateServiceFields(record){
     target.needsVerify=false;
     if(!target.eventType)target.eventType='part_replacement';
     if(!target.priceScope)target.priceScope='User editable — tap Edit to set your own price';
+  }
+  if(target.pmKey==='suspension_parts'||/suspension parts set/i.test(String(target.part||''))){
+    target.pmKey='suspension_parts';
+    target.part='Suspension Parts Set';
+    target.system='Wheel / Suspension';
+    target.imageKey='suspension_parts';
+    target.needsVerify=false;
   }
   if(target.workshop===undefined)target.workshop='';
   if(target.partBrand===undefined)target.partBrand='';

@@ -1,17 +1,40 @@
 'use strict';
 
+const HEALTH_SYSTEM_IMAGE_KEYS={
+  'Engine':'health_engine',
+  'Transmission':'health_transmission',
+  'Cooling':'health_cooling',
+  'Electrical':'health_electrical',
+  'Brake':'health_brake',
+  'Suspension':'suspension_parts',
+  'Tires':'health_tires',
+  'Fluids':'engine_oil',
+  'Battery':'health_battery',
+  'Air Conditioning':'cabin_air_filter'
+};
+function healthSystemImage(system){
+  const key=HEALTH_SYSTEM_IMAGE_KEYS[system];
+  return (key&&IMAGE_MAP[key])||FALLBACK_PART_IMAGE;
+}
+
+function canonicalHealthSystem(system){
+  const value=String(system||'').trim();
+  if(value.toLowerCase()==='steering')return 'Suspension';
+  return SYSTEMS.find(item=>item.toLowerCase()===value.toLowerCase())||'';
+}
+
 function recordSystems(r){
   const n=norm(r.part), s=String(r.system||'').toLowerCase(), out=new Set();
   if(s.includes('engine'))out.add('Engine'); if(s.includes('transmission'))out.add('Transmission'); if(s.includes('cooling'))out.add('Cooling');
   if(s.includes('electrical'))out.add('Electrical'); if(s.includes('brake'))out.add('Brake'); if(s.includes('suspension')||s.includes('wheel'))out.add('Suspension');
-  if(s.includes('steering'))out.add('Steering'); if(s.includes('tire'))out.add('Tires'); if(s.includes('a/c')||s.includes('air conditioning'))out.add('Air Conditioning');
+  if(s.includes('steering'))out.add('Suspension'); if(s.includes('tire'))out.add('Tires'); if(s.includes('a/c')||s.includes('air conditioning'))out.add('Air Conditioning');
   if(n.includes('engine oil')||n.includes('spark')||n.includes('engine air')||n.includes('drive belt')||n.includes('tension')||n.includes('engine mount')||n.includes('fuel pump'))out.add('Engine');
   if(n.includes('atf')||n.includes('valve body')||n.includes('torque converter')||n.includes('transmission'))out.add('Transmission');
   if(n.includes('coolant')||n.includes('radiator')||n.includes('thermostat')||n.includes('water pump')||n.includes('fan motor'))out.add('Cooling');
   if(n.includes('battery')){out.add('Battery');out.add('Electrical')}
   if(n.includes('alternator')||n.includes('starter'))out.add('Electrical');
   if(n.includes('brake'))out.add('Brake'); if(n.includes('bearing')||n.includes('lower arm')||n.includes('ball joint')||n.includes('shock')||n.includes('bushing'))out.add('Suspension');
-  if(n.includes('tie rod')||n.includes('steering'))out.add('Steering'); if(n.includes('tire'))out.add('Tires'); if(n.includes('cabin air')||n.includes('a/c'))out.add('Air Conditioning');
+  if(n.includes('tie rod')||n.includes('steering'))out.add('Suspension'); if(n.includes('tire'))out.add('Tires'); if(n.includes('cabin air')||n.includes('a/c'))out.add('Air Conditioning');
   if(isFluidRecord(r))out.add('Fluids'); return [...out];
 }
 
@@ -30,14 +53,14 @@ function repeatFailureCount(system){
   const g={};events.forEach(e=>g[aliasKey(e.title)]=(g[aliasKey(e.title)]||0)+1);return Object.values(g).reduce((s,n)=>s+Math.max(0,n-1),0)
 }
 function systemHealth(system){
-  const reasons=[], records=visibleHistory().filter(r=>recordSystems(r).includes(system)), lifeRows=records.map(r=>({r,m:lifeMetrics(r)})).filter(x=>x.m.remaining!==null);
+  const reasons=[], records=allSavedHistory().filter(r=>recordSystems(r).includes(system)), lifeRows=records.map(r=>({r,m:lifeMetrics(r)})).filter(x=>x.m.remaining!==null);
   let deduction=0, evidence=0;
   if(lifeRows.length){
     const avg=lifeRows.reduce((s,x)=>s+x.m.remaining,0)/lifeRows.length;const d=clamp((100-avg)*0.32,0,32);deduction+=d;evidence+=Math.min(40,15+lifeRows.length*6);
     reasons.push({text:`Lifecycle average ${avg.toFixed(0)}% from ${lifeRows.length} monitored item(s)`,delta:-Math.round(d),negative:d>0});
     lifeRows.filter(x=>x.m.raw!==null&&x.m.raw<=0).forEach(x=>reasons.push({text:`${x.r.part} overdue`,delta:-5,negative:true}));
   }
-  const syms=db.symptoms.filter(s=>s.system===system&&s.status!=='Resolved');
+  const syms=db.symptoms.filter(s=>canonicalHealthSystem(s.system)===system&&s.status!=='Resolved');
   if(syms.length){let d=0;syms.forEach(s=>{const rec=symptomRecurrence(s);d+=Number(s.severity||1)*2+Math.max(0,rec-1)*1.2});d=clamp(d,0,32);deduction+=d;evidence+=Math.min(30,12+syms.length*6);reasons.push({text:`${syms.length} active/monitoring symptom(s)`,delta:-Math.round(d),negative:true})}else if(lifeRows.length){reasons.push({text:'No active symptom recorded',delta:0,negative:false})}
   const inspect=latestInspectionStatus(system);if(inspect.length){const ab=inspect.filter(i=>i.status==='Abnormal').length,mo=inspect.filter(i=>i.status==='Monitor').length,d=ab*10+mo*4;deduction+=clamp(d,0,20);evidence+=15;reasons.push({text:`Latest inspection: ${ab} abnormal, ${mo} monitor`,delta:-clamp(d,0,20),negative:d>0})}
   const fluidLeaks=records.filter(r=>isFluidRecord(r)&&db.fluidState[r.id]?.leak);if(fluidLeaks.length){deduction+=12;reasons.push({text:`Fluid leak flagged: ${fluidLeaks.map(x=>x.part).join(', ')}`,delta:-12,negative:true});evidence+=10}
@@ -50,10 +73,10 @@ function systemHealth(system){
   evidence=clamp(evidence,0,100);if(evidence<15)return {system,score:null,confidence:evidence,reasons:[{text:'Insufficient supporting data',delta:0,negative:false}],records};
   return {system,score:Math.round(clamp(100-deduction,0,100)),confidence:evidence,reasons,records};
 }
-function grade(score){if(score===null)return {label:'INSUFFICIENT DATA',color:'#737780'};if(score>=90)return {label:'EXCELLENT',color:'var(--green)'};if(score>=80)return {label:'GOOD',color:'var(--green)'};if(score>=70)return {label:'MONITOR',color:'var(--amber)'};if(score>=50)return {label:'SERVICE SOON',color:'#ff983e'};return {label:'CRITICAL',color:'var(--danger)'}}
+function grade(score){if(score===null||!Number.isFinite(Number(score)))return {label:'INSUFFICIENT DATA',color:'#737780'};if(score>=90)return {label:'EXCELLENT',color:'var(--green)'};if(score>=80)return {label:'GOOD',color:'var(--green)'};if(score>=70)return {label:'MONITOR',color:'var(--amber)'};if(score>=50)return {label:'SERVICE SOON',color:'#ff983e'};return {label:'CRITICAL',color:'var(--danger)'}}
 function overallHealth(){
   const systems=SYSTEMS.map(systemHealth), valid=systems.filter(s=>s.score!==null);let w=0,sum=0,confidenceWeighted=0;
-  valid.forEach(s=>{const sw=(db.settings.systemWeights||SYSTEM_WEIGHTS)[s.system]||0;w+=sw;sum+=s.score*sw;confidenceWeighted+=s.confidence*sw});
+  valid.forEach(s=>{const raw=Number((db.settings.systemWeights||SYSTEM_WEIGHTS)[s.system]),sw=Number.isFinite(raw)&&raw>0?raw:0;w+=sw;sum+=s.score*sw;confidenceWeighted+=s.confidence*sw});
   if(w<0.25)return {score:null,confidence:Math.round(w*100),systems,reasons:[]};
   const score=Math.round(sum/w),confidence=Math.round(confidenceWeighted/w*w);const reasons=systems.flatMap(s=>s.reasons.filter(r=>r.negative).map(r=>({...r,system:s.system}))).sort((a,b)=>a.delta-b.delta).slice(0,4);return {score,confidence,systems,reasons}
 }
@@ -82,7 +105,42 @@ function alertClass(sev){return sev==='CRITICAL'?'alert-critical':sev==='WARNING
 function updateAlert(id,status){const a=db.alerts.find(x=>x.id===id);if(a){a.status=status;a.updatedAt=nowIso();persist();renderAll()}}
 function createTaskFromAlert(id){const a=db.alerts.find(x=>x.id===id);if(!a)return;db.tasks.push({id:uid('task'),title:a.title,status:'open',sourceAlertId:id,createdAt:nowIso()});a.status='acknowledged';persist();renderAll()}
 function createSymptomFromAlert(id){const a=db.alerts.find(x=>x.id===id);if(!a)return;let system='Engine',name=a.title;if(a.sourceType==='history'){const r=db.history.find(x=>x.id===a.sourceId);if(r){system=recordSystems(r).find(x=>x!=='Fluids')||r.system||'Engine';name='Inspect '+r.part}}else if(a.sourceType==='symptom'){const s=db.symptoms.find(x=>x.id===a.sourceId);if(s){system=s.system;name=s.name}}openSymptomModal({system,name,note:'Created from alert: '+a.message})}
-function openAlertSource(id){const a=db.alerts.find(x=>x.id===id);if(!a)return;if(a.sourceType==='history'){const r=db.history.find(x=>x.id===a.sourceId);if(r){search.value=r.part;systemFilter.value='';renderHistory();document.getElementById('history').scrollIntoView({behavior:'smooth'})}}else{document.getElementById('symptoms').scrollIntoView({behavior:'smooth'})}}
+function scrollToExistingSection(ids){
+  if(typeof document==='undefined')return '';
+  for(const id of ids){
+    const target=document.getElementById(id);
+    if(target&&typeof target.scrollIntoView==='function'){target.scrollIntoView({behavior:'smooth',block:'start'});return id}
+  }
+  return '';
+}
+function alertSourceDestination(alert,history=[],symptoms=[]){
+  if(alert?.sourceType==='history'){
+    const record=history.find(item=>item.id===alert.sourceId);
+    if(record)return {kind:'history',record,sectionIds:['history','vehicleHealth']};
+  }
+  if(alert?.sourceType==='symptom'){
+    const symptom=symptoms.find(item=>item.id===alert.sourceId);
+    return {kind:'symptom',symptom: symptom||null,system:canonicalHealthSystem(symptom?.system),sectionIds:['vehicleHealth','history']};
+  }
+  return {kind:'fallback',sectionIds:['vehicleHealth','history']};
+}
+function openAlertSource(id){
+  const alert=db.alerts.find(item=>item.id===id);
+  if(!alert)return false;
+  const destination=alertSourceDestination(alert,db.history,db.symptoms);
+  if(destination.kind==='history'&&destination.record){
+    if(typeof search!=='undefined'&&search)search.value=destination.record.part||'';
+    if(typeof systemFilter!=='undefined'&&systemFilter)systemFilter.value='';
+    renderHistory();
+    scrollToExistingSection(destination.sectionIds);
+    openPartDetails(destination.record.id);
+    return true;
+  }
+  if(destination.kind==='symptom'&&destination.system)openHealthDetail(destination.system);
+  const section=scrollToExistingSection(destination.sectionIds);
+  if(!section&&typeof showDbToast==='function')showDbToast('Related record is unavailable');
+  return !!section;
+}
 
 function diagnostics(){
   const groups={};db.symptoms.forEach(s=>{const k=`${s.system}|${norm(s.name)}`;(groups[k]||(groups[k]=[])).push(s)});const out=[];
@@ -94,7 +152,7 @@ function appendHealthSnapshot(overall){if(overall.score===null)return;const toda
 function renderHealth(){
   const o=overallHealth(),g=grade(o.score);vhOverallScore.textContent=o.score===null?'—':o.score;vhOverallGrade.textContent=g.label;vhOverallGrade.style.color=g.color;vhConfidence.innerHTML=`Confidence: <b>${o.confidence}%</b> · ${o.systems.filter(x=>x.score!==null).length}/${SYSTEMS.length} systems have usable evidence`;
   vhTopReasons.innerHTML=o.reasons.length?o.reasons.map(r=>`<div class="reason-mini"><span>${esc(r.system)} · ${esc(r.text)}</span><b>${r.delta}</b></div>`).join(''):'<div class="reason-mini"><span>No scored deduction available yet.</span><b>—</b></div>';
-  systemHealthGrid.innerHTML=o.systems.map(s=>{const gr=grade(s.score);return `<button class="system-card" onclick="openHealthDetail('${esc(s.system)}')"><div class="system-name">${esc(s.system)}</div><div class="system-score ${s.score===null?'insufficient':''}">${s.score===null?'—':s.score+'%'}</div><div class="system-status" style="color:${gr.color}">${gr.label}</div><div class="system-data">Confidence ${s.confidence}% · ${s.records.length} related record(s)</div></button>`}).join('');
+  systemHealthGrid.innerHTML=o.systems.map(s=>{const gr=grade(s.score),img=healthSystemImage(s.system);return `<button class="system-card system-card-with-image" onclick="openHealthDetail('${esc(s.system)}')"><div class="system-health-image"><img src="${img}" alt="${esc(s.system)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_PART_IMAGE"></div><div class="system-health-copy"><div class="system-name">${esc(s.system)}</div><div class="system-score ${s.score===null?'insufficient':''}">${s.score===null?'—':s.score+'%'}</div><div class="system-status" style="color:${gr.color}">${gr.label}</div><div class="system-data">Confidence ${s.confidence}% · ${s.records.length} related record(s)</div></div></button>`}).join('');
   appendHealthSnapshot(o);return o
 }
 function openHealthDetail(system){const h=systemHealth(system),g=grade(h.score);healthDetailTitle.textContent=`${system} Health`;healthDetailSummary.innerHTML=`Score: <b style="color:${g.color}">${h.score===null?'Insufficient Data':h.score+'% '+g.label}</b><br>Evidence confidence: <b>${h.confidence}%</b>`;healthDetailReasons.innerHTML=h.reasons.map(r=>`<div class="detail-reason ${r.negative?'detail-negative':'detail-positive'}"><span>${esc(r.text)}</span><b>${r.delta<0?r.delta:r.delta===0?'NORMAL':'+'+r.delta}</b></div>`).join('');healthDetailModal.classList.add('show')}
@@ -102,4 +160,4 @@ function openHealthDetail(system){const h=systemHealth(system),g=grade(h.score);
 function renderAlerts(){const arr=activeAlerts();alertCount.textContent=`${arr.length} active`;alertList.innerHTML=arr.length?arr.map(a=>`<div class="alert-row"><div class="alert-top"><div><div class="row-title">${esc(a.title)}</div><div class="row-sub">${esc(a.message)}</div></div><span class="alert-sev ${alertClass(a.severity)}">${a.severity}</span></div><div class="row-actions">${a.status==='active'?`<button onclick="updateAlert('${a.id}','acknowledged')">Acknowledge</button>`:''}<button onclick="updateAlert('${a.id}','dismissed')">Dismiss</button><button onclick="createTaskFromAlert('${a.id}')">Create Task</button><button onclick="createSymptomFromAlert('${a.id}')">Create Symptom</button><button onclick="openAlertSource('${a.id}')">Open Related</button></div></div>`).join(''):'<div class="empty">No active alert.</div>'}
 function renderForecast(){const arr=forecast();forecastList.innerHTML=arr.length?arr.map(x=>`<div class="forecast-row"><div class="forecast-top"><div><div class="row-title">${esc(x.title)}</div><div class="row-sub">${esc(x.system)}</div></div><div style="text-align:right"><div class="forecast-km">${esc(x.label)}</div><div class="forecast-bucket">${x.type==='symptom'?'Symptom review':'Upcoming'}</div></div></div></div>`).join(''):'<div class="empty">No maintenance forecast with current data.</div>'}
 
-if(typeof module!=='undefined'&&module.exports){module.exports={grade};}
+if(typeof module!=='undefined'&&module.exports){module.exports={HEALTH_SYSTEM_IMAGE_KEYS,healthSystemImage,canonicalHealthSystem,recordSystems,grade,systemHealth,overallHealth,scrollToExistingSection,alertSourceDestination};}

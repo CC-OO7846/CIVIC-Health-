@@ -14,6 +14,35 @@ function budgetMonthsTo(date,now=new Date()){
   return (date-now)/86400000/30.4375;
 }
 function budgetKind(pm){return BUDGET_SERVICE_KEYS.has(pm.pmKey)?'Service / Labor':'Parts / Materials';}
+function budgetPmWithRecord(pm,history=[]){
+  const record=history.find(item=>item?.pmKey===pm.pmKey);
+  if(!record)return {...pm};
+  const hasCustom=Object.prototype.hasOwnProperty.call(record,'customReferencePrice');
+  const custom=Number(record.customReferencePrice);
+  const stored=Number(record.referencePrice);
+  const fallback=Number(pm.referencePrice||0);
+  const referencePrice=hasCustom&&Number.isFinite(custom)&&custom>=0?custom:Number.isFinite(stored)&&stored>=0?stored:fallback;
+  const planKm=Number(record.pmPlanKm);
+  return {
+    ...pm,
+    planKm:Number.isFinite(planKm)&&planKm>0?planKm:Number(pm.planKm||0),
+    planDate:record.pmPlanDate||pm.planDate||'',
+    derivedPlanDate:record.pmDerivedPlanDate||pm.derivedPlanDate||'',
+    referencePrice,
+    priceScope:record.priceScope||pm.priceScope||''
+  };
+}
+function buildBudgetRows(schedule,history,context,now=new Date()){
+  const seen=new Set();
+  return schedule
+    .filter(pm=>!seen.has(pm.pmKey)&&seen.add(pm.pmKey))
+    .map(pm=>buildBudgetMeta(budgetPmWithRecord(pm,history),context,now))
+    .filter(row=>row.effectiveKm!==null||row.dueDate)
+    .sort((a,b)=>{
+      if(a.overdue!==b.overdue)return a.overdue?-1:1;
+      return (a.effectiveKm??1e15)-(b.effectiveKm??1e15);
+    });
+}
 function buildBudgetMeta(pm,context,now=new Date()){
   const currentKm=Number(context?.currentKm||0),monthlyKm=Math.max(1,Number(context?.monthlyKm||1200));
   const planKm=Number(pm.planKm||0),kmTo=planKm>0?planKm-currentKm:null;
@@ -30,11 +59,7 @@ function buildBudgetMeta(pm,context,now=new Date()){
 }
 function budgetMeta(pm){return buildBudgetMeta(pm,{currentKm:db.car.km,monthlyKm:db.car.monthlyKm},new Date());}
 function budgetAll(){
-  const seen=new Set();
-  return PM_SCHEDULE.filter(pm=>!seen.has(pm.pmKey)&&seen.add(pm.pmKey)).map(budgetMeta).filter(row=>row.effectiveKm!==null||row.dueDate).sort((a,b)=>{
-    if(a.overdue!==b.overdue)return a.overdue?-1:1;
-    return (a.effectiveKm??1e15)-(b.effectiveKm??1e15);
-  });
+  return buildBudgetRows(PM_SCHEDULE,db.history,{currentKm:db.car.km,monthlyKm:db.car.monthlyKm},new Date());
 }
 function rowsForBudgetWindow(rows,win){
   if(win==='all')return rows.slice();
@@ -109,4 +134,4 @@ function renderNextBudget(){
   }).join(''):'<tr><td colspan="5"><div class="empty">No planned maintenance found in this window.</div></td></tr>';
 }
 
-if(typeof module!=='undefined'&&module.exports){module.exports={BUDGET_SERVICE_KEYS,budgetDueDate,budgetMonthsTo,budgetKind,buildBudgetMeta,rowsForBudgetWindow,budgetSum};}
+if(typeof module!=='undefined'&&module.exports){module.exports={BUDGET_SERVICE_KEYS,budgetDueDate,budgetMonthsTo,budgetKind,budgetPmWithRecord,buildBudgetRows,buildBudgetMeta,rowsForBudgetWindow,budgetSum};}

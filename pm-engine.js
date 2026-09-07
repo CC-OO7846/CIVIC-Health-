@@ -71,7 +71,18 @@ function imageKeyForPartName(name){
   return map[key]||null;
 }
 
-function addMonthsIso(dateStr,months){if(!dateStr||!months)return '';const d=new Date(dateStr+'T00:00:00');d.setMonth(d.getMonth()+Number(months));return d.toISOString().slice(0,10)}
+function addMonthsIso(dateStr,months){
+  const count=Number(months||0);
+  if(!dateStr||!Number.isFinite(count)||count<=0)return '';
+  const d=new Date(dateStr+'T12:00:00');
+  if(!Number.isFinite(d.getTime()))return '';
+  const day=d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth()+Math.round(count));
+  const endOfMonth=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+  d.setDate(Math.min(day,endOfMonth));
+  return d.toISOString().slice(0,10);
+}
 
 function isFluidRecord(r){const n=engineNorm(r.part);return ['engine oil','atf','coolant','brake fluid','power steering fluid','differential oil','washer fluid'].some(x=>n.includes(x))}
 
@@ -119,6 +130,8 @@ function resolvePartImage(r){
 }
 function hasDisplayImage(r){return !!resolvePartImage(r)}
 function visibleHistory(){return db.history.filter(r=>r.pmTracked&&hasDisplayImage(r))}
+function allSavedHistoryFrom(history){return Array.isArray(history)?history.filter(r=>r&&r.part):[]}
+function allSavedHistory(){return allSavedHistoryFrom(db.history)}
 
 
 function resolveImageSource(record,imageMap){
@@ -129,4 +142,4 @@ function resolveImageSource(record,imageMap){
   return (inferred&&imageMap[inferred])||(record.needsVerify&&typeof FALLBACK_PART_IMAGE!=='undefined'?FALLBACK_PART_IMAGE:'')||record.image||'';
 }
 
-if(typeof module!=='undefined'&&module.exports){module.exports={aliasKey,imageKeyForPartName,calculateLife,statusText,resolveImageSource,isFluidRecord,addMonthsIso};}
+if(typeof module!=='undefined'&&module.exports){module.exports={aliasKey,imageKeyForPartName,calculateLife,statusText,resolveImageSource,isFluidRecord,addMonthsIso,allSavedHistoryFrom};}

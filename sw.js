@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME='clean-garage-v10.18.0-systems-map';
+const CACHE_NAME='clean-garage-v10.18.6';
 const CORE_ASSETS=[
   "./",
   "./index.html",
@@ -15,15 +15,28 @@ const CORE_ASSETS=[
   "./pwa.js",
   "./manifest.webmanifest",
   "./image-map.js",
-  "./pm-data.js",
+  "./pm-data.js"
+];
+const OPTIONAL_ASSETS=[
+  "./hero.webp",
   "./car-health-icon-v2-180.png",
   "./car-health-icon-v2-192.png",
-  "./car-health-icon-v2-512.png",
-  "./systems-map.webp"
+  "./car-health-icon-v2-512.png"
 ];
 
+async function cacheFreshAsset(cache,asset){
+  const url=new URL(asset,self.location.href);
+  url.searchParams.set('app-cache',CACHE_NAME);
+  const response=await fetch(new Request(url,{cache:'reload',credentials:'same-origin'}));
+  if(!response.ok)throw new Error('Could not cache '+asset);
+  await cache.put(asset,response);
+}
+
 self.addEventListener('install',event=>{
-  event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(CORE_ASSETS)));
+  event.waitUntil(caches.open(CACHE_NAME).then(async cache=>{
+    await Promise.all(CORE_ASSETS.map(asset=>cacheFreshAsset(cache,asset)));
+    await Promise.allSettled(OPTIONAL_ASSETS.map(asset=>cacheFreshAsset(cache,asset)));
+  }));
 });
 
 self.addEventListener('message',event=>{

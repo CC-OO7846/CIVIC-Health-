@@ -13,10 +13,49 @@ let persistTimer=null;
 let persistChain=Promise.resolve();
 let booted=false;
 let lastPersistError=null;
+let lastPersistedSnapshot=null;
 
 function cloneValue(value){
   if(typeof structuredClone==='function')return structuredClone(value);
   return JSON.parse(JSON.stringify(value));
+}
+
+function isPlainDataObject(value){return !!value&&typeof value==='object'&&!Array.isArray(value);}
+
+function validateMigrationSource(source){
+  if(!isPlainDataObject(source))throw new Error('Database root must be an object');
+  const schemaVersion=Number(source.schemaVersion||0);
+  if(!Number.isFinite(schemaVersion)||schemaVersion<0)throw new Error('Database schema version is invalid');
+  if(schemaVersion>SCHEMA_VERSION)throw new Error('Database schema '+schemaVersion+' is newer than this app supports');
+  if(source.car!==undefined&&!isPlainDataObject(source.car))throw new Error('Vehicle data is invalid');
+  for(const key of ['history','symptoms','inspections','alerts','tasks','serviceEvents','healthHistory']){
+    if(source[key]!==undefined&&!Array.isArray(source[key]))throw new Error(key+' must be an array');
+    if(Array.isArray(source[key])&&source[key].some(item=>!isPlainDataObject(item)))throw new Error(key+' contains an invalid record');
+  }
+  if(source.fluidState!==undefined&&!isPlainDataObject(source.fluidState))throw new Error('fluidState must be an object');
+  if(source.settings!==undefined&&!isPlainDataObject(source.settings))throw new Error('settings must be an object');
+  if(source.settings?.systemWeights!==undefined&&!isPlainDataObject(source.settings.systemWeights))throw new Error('systemWeights must be an object');
+  return source;
+}
+
+function normalizeSystemWeights(source){
+  const input=isPlainDataObject(source)?source:{};
+  const values={};
+  for(const system of SYSTEMS){
+    const hasCustom=Object.prototype.hasOwnProperty.call(input,system);
+    const candidate=hasCustom?Number(input[system]):Number(SYSTEM_WEIGHTS[system]);
+    values[system]=Number.isFinite(candidate)&&candidate>=0?candidate:Number(SYSTEM_WEIGHTS[system]||0);
+  }
+  const total=Object.values(values).reduce((sum,value)=>sum+value,0);
+  if(!(total>0))return {...SYSTEM_WEIGHTS};
+  const normalized={};
+  let assigned=0;
+  SYSTEMS.forEach((system,index)=>{
+    const value=index===SYSTEMS.length-1?Math.max(0,1-assigned):values[system]/total;
+    normalized[system]=value;
+    assigned+=value;
+  });
+  return normalized;
 }
 
 function baseDb(){
@@ -37,6 +76,36 @@ function mergeRequiredForNew(history){
   return arr;
 }
 
+function legacySeedServiceSignature(record,seed){
+  if(!record||!seed)return false;
+  return aliasKey(record.part)===aliasKey(seed.part)
+    && Number(record.km||0)===Number(seed.km||0)
+    && String(record.date||'')===String(seed.date||'')
+    && Number(record.intervalKm||0)===Number(seed.intervalKm||0)
+    && Number(record.intervalMonths||0)===Number(seed.intervalMonths||0);
+}
+
+function isUntouchedLegacySeedRecord(record){
+  return [...INITIAL_HISTORY,...REQUIRED_RECORDS].some(seed=>legacySeedServiceSignature(record,seed));
+}
+
+function syncLegacySeedFromExcel(record,pm){
+  if(!record||!pm||!isUntouchedLegacySeedRecord(record))return false;
+  record.part=pm.part;
+  record.system=pm.system;
+  record.date=pm.historyDate||'';
+  record.km=Number(pm.historyKm||0);
+  record.intervalKm=Number(pm.intervalKm||0);
+  record.intervalMonths=Number(pm.intervalMonths||0);
+  record.pmPlanKm=Number(pm.planKm||0);
+  record.pmPlanDate=pm.planDate||'';
+  record.pmDerivedPlanDate=pm.derivedPlanDate||'';
+  record.pmPlanDateRaw=pm.planDateRaw??null;
+  record.pmHistoryDateRaw=pm.historyDateRaw||'';
+  record.pmExcelSourceSynced=true;
+  return true;
+}
+
 function applyPmCatalog(target,{seedMissing=true}={}){
   const history=target.history;
   PM_SCHEDULE.forEach((pm,i)=>{
@@ -53,6 +122,7 @@ function applyPmCatalog(target,{seedMissing=true}={}){
       history.push(record);
     }
     if(!record)return;
+    syncLegacySeedFromExcel(record,pm);
     const customReference=Object.prototype.hasOwnProperty.call(record,'customReferencePrice')?Number(record.customReferencePrice||0):null;
     const metadata={
       pmKey:pm.pmKey,pmTracked:true,pmSource:'Civic es(3).xlsx',pmGroup:pm.group,pmSourceLabel:pm.sourceLabel,
@@ -72,16 +142,17 @@ function applyPmCatalog(target,{seedMissing=true}={}){
 }
 
 function migrateSource(source){
-  const isNew=!source;
+  const isNew=source==null;
+  if(!isNew)validateMigrationSource(source);
   const defaults=baseDb();
   const target=isNew?defaults:cloneValue(source);
-  target.car={...defaults.car,...(target.car&&typeof target.car==='object'?target.car:{})};
+  target.car={...defaults.car,...(isPlainDataObject(target.car)?target.car:{})};
   for(const key of ['history','symptoms','inspections','alerts','tasks','serviceEvents','healthHistory']){
     if(!Array.isArray(target[key]))target[key]=[];
   }
-  if(!target.fluidState||typeof target.fluidState!=='object'||Array.isArray(target.fluidState))target.fluidState={};
-  target.settings={...defaults.settings,...(target.settings&&typeof target.settings==='object'?target.settings:{})};
-  target.settings.systemWeights={...SYSTEM_WEIGHTS,...(target.settings.systemWeights||{})};
+  if(!isPlainDataObject(target.fluidState))target.fluidState={};
+  const storedSettings=isPlainDataObject(target.settings)?target.settings:{};
+  target.settings={...defaults.settings,...storedSettings,systemWeights:normalizeSystemWeights(storedSettings.systemWeights)};
   if(isNew){
     target.history=mergeRequiredForNew(INITIAL_HISTORY.map(item=>({...cloneValue(item)})));
   }
@@ -93,6 +164,10 @@ function migrateSource(source){
     return migrated;
   });
   applyPmCatalog(target,{seedMissing:true});
+  // PM catalog seeding happens after legacy aliases are normalized. Complete
+  // service-field migration for any records introduced by that catalog pass so
+  // reopening the same database is deterministic and makes no second-pass edits.
+  target.history=target.history.map(record=>migrateServiceFields(record));
   if(isNew&&!target.serviceEvents.length){
     target.history.filter(record=>record.date||record.km).forEach(record=>target.serviceEvents.push({
       id:uid('evt'),vehicleId:target.car.id,type:record.eventType||'part_replacement',date:record.date||'',
@@ -105,11 +180,16 @@ function migrateSource(source){
 
 function runtimeFallback(source){
   const defaults=baseDb();
-  const target={...defaults,...cloneValue(source||{})};
-  target.car={...defaults.car,...(target.car||{})};
-  for(const key of ['history','symptoms','inspections','alerts','tasks','serviceEvents','healthHistory'])if(!Array.isArray(target[key]))target[key]=[];
-  target.fluidState=target.fluidState&&typeof target.fluidState==='object'?target.fluidState:{};
-  target.settings={...defaults.settings,...(target.settings||{})};
+  const raw=isPlainDataObject(source)?cloneValue(source):{};
+  const target={...defaults,...raw};
+  target.car={...defaults.car,...(isPlainDataObject(raw.car)?raw.car:{})};
+  for(const key of ['history','symptoms','inspections','alerts','tasks','serviceEvents','healthHistory']){
+    target[key]=Array.isArray(raw[key])?raw[key].filter(isPlainDataObject):[];
+  }
+  target.fluidState=isPlainDataObject(raw.fluidState)?raw.fluidState:{};
+  const storedSettings=isPlainDataObject(raw.settings)?raw.settings:{};
+  target.settings={...defaults.settings,...storedSettings,systemWeights:normalizeSystemWeights(storedSettings.systemWeights)};
+  target.schemaVersion=SCHEMA_VERSION;
   return target;
 }
 
@@ -191,6 +271,7 @@ async function idbCleanupRecoveries(){
 }
 
 async function idbWriteRecovery(snapshot,reason='migration'){
+  validateMigrationSource(snapshot);
   const database=await openLocalDatabase();
   const record={id:`${Date.now()}-${Math.random().toString(36).slice(2,8)}`,createdAt:nowIso(),reason,db:cloneValue(snapshot)};
   await new Promise((resolve,reject)=>{
@@ -204,23 +285,74 @@ async function idbWriteRecovery(snapshot,reason='migration'){
   return record.id;
 }
 
-async function persistNow(){
-  const snapshot=cloneValue(db);
-  persistChain=persistChain.catch(()=>{}).then(()=>idbWriteState(snapshot)).then(()=>{
+function isQuotaError(error){
+  const name=String(error?.name||'').toLowerCase();
+  const message=String(error?.message||error||'').toLowerCase();
+  return name==='quotaexceedederror'||/quota|storage.+full|disk.+full|space.+left/.test(message)||(error?.cause&&error.cause!==error?isQuotaError(error.cause):false);
+}
+
+function isDatabaseWriteError(error){return !!error?.storageFailure||isQuotaError(error);}
+
+function databaseWriteMessage(error){
+  return isQuotaError(error)
+    ?'Device storage is full. Your latest change could not be saved. Create a backup and remove large images.'
+    :'Database save failed. Your latest change could not be saved.';
+}
+
+function markStorageFailure(error){
+  const failure=new Error(String(error?.message||error||'IndexedDB write failed'));
+  failure.name=String(error?.name||'DatabaseWriteError');
+  failure.cause=error;
+  failure.storageFailure=true;
+  return failure;
+}
+
+async function writeDatabaseCandidate(current,candidate,writeState=idbWriteState){
+  const snapshot=cloneValue(candidate);
+  await writeState(snapshot);
+  return snapshot;
+}
+
+function reportPersistFailure(error){
+  const failure=markStorageFailure(error);
+  lastPersistError=failure;
+  if(lastPersistedSnapshot)db=cloneValue(lastPersistedSnapshot);
+  console.error('IndexedDB persist failed',failure);
+  if(booted&&typeof renderAll==='function'){
+    try{renderAll();}catch(renderError){console.error('Rollback render failed',renderError);}
+  }
+  const status=document.getElementById('dbStatus');
+  if(status)status.textContent='Save error';
+  showDbToast(databaseWriteMessage(failure));
+  return failure;
+}
+
+function enqueueStateWrite(snapshot,{applyToMemory=false}={}){
+  const candidate=cloneValue(snapshot);
+  const write=persistChain.catch(()=>{}).then(()=>writeDatabaseCandidate(db,candidate,idbWriteState));
+  persistChain=write.then(async saved=>{
     lastPersistError=null;
-    return updateStorageStatus();
-  }).catch(error=>{
-    lastPersistError=error;
-    console.error('IndexedDB persist failed',error);
-    showDbToast('Database save failed');
-    throw error;
-  });
+    lastPersistedSnapshot=cloneValue(saved);
+    if(applyToMemory)db=cloneValue(saved);
+    try{await updateStorageStatus();}catch(error){console.warn('Storage status update failed',error);}
+    return cloneValue(saved);
+  },error=>{throw reportPersistFailure(error);});
   return persistChain;
+}
+
+async function persistNow(){
+  clearTimeout(persistTimer);persistTimer=null;
+  return enqueueStateWrite(db);
+}
+
+async function commitDatabaseCandidate(candidate){
+  clearTimeout(persistTimer);persistTimer=null;
+  return enqueueStateWrite(candidate,{applyToMemory:true});
 }
 
 function persist(){
   clearTimeout(persistTimer);
-  persistTimer=setTimeout(()=>persistNow().catch(()=>{}),120);
+  persistTimer=setTimeout(()=>{persistTimer=null;persistNow().catch(()=>{});},120);
 }
 
 async function bootDatabase(){
@@ -232,21 +364,26 @@ async function bootDatabase(){
       db=migrateSource(legacy);
       if(legacy)await idbWriteRecovery(legacy,'legacy-localstorage-import');
       await idbWriteState(db);
+      lastPersistedSnapshot=cloneValue(db);
       if(legacy)showDbToast('Moved existing data to IndexedDB');
     }else{
+      lastPersistedSnapshot=cloneValue(stored);
       const fromVersion=Number(stored.schemaVersion||0);
       const migrated=migrateSource(stored);
       if(fromVersion<SCHEMA_VERSION){
         await idbWriteRecovery(stored,`schema-${fromVersion}-to-${SCHEMA_VERSION}`);
         await idbWriteState(migrated);
+        lastPersistedSnapshot=cloneValue(migrated);
       }
       db=migrated;
     }
     booted=true;
     renderAll();
+    try{await persistNow();}catch(error){console.warn('Post-boot database save failed',error);}
     await updateStorageStatus();
   }catch(error){
     console.error('Database boot failed',error);
+    lastPersistedSnapshot=stored?cloneValue(stored):null;
     db=stored?runtimeFallback(stored):migrateSource(readLegacyLocalStorage());
     booted=true;
     renderAll();
@@ -262,7 +399,7 @@ function showDbToast(message){
   element.textContent=message;
   element.classList.add('show');
   clearTimeout(showDbToast._timer);
-  showDbToast._timer=setTimeout(()=>element.classList.remove('show'),2600);
+  showDbToast._timer=setTimeout(()=>element.classList.remove('show'),String(message||'').length>60?5200:2600);
 }
 
 async function updateStorageStatus(){
@@ -295,5 +432,5 @@ async function requestPersistentStorage(){
 }
 
 if(typeof module!=='undefined'&&module.exports){
-  module.exports={baseDb,migrateSource,applyPmCatalog,runtimeFallback,cloneValue,recoveryIdsToDelete,IDB_NAME,IDB_VERSION,IDB_STORE,IDB_PRIMARY_KEY,IDB_RECOVERY_STORE,RECOVERY_MAX_COUNT,RECOVERY_MAX_AGE_DAYS};
+  module.exports={baseDb,migrateSource,applyPmCatalog,runtimeFallback,cloneValue,isPlainDataObject,validateMigrationSource,normalizeSystemWeights,legacySeedServiceSignature,isUntouchedLegacySeedRecord,syncLegacySeedFromExcel,recoveryIdsToDelete,isQuotaError,isDatabaseWriteError,databaseWriteMessage,writeDatabaseCandidate,IDB_NAME,IDB_VERSION,IDB_STORE,IDB_PRIMARY_KEY,IDB_RECOVERY_STORE,RECOVERY_MAX_COUNT,RECOVERY_MAX_AGE_DAYS};
 }

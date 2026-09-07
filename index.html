@@ -110,7 +110,7 @@
     <div class="mobile-quick">
       <button onclick="openHistoryModal()"><b>＋</b>Add Service</button>
       <button onclick="openCarModal()"><b>⌁</b>Update KM</button>
-      <button onclick="document.getElementById('systemsMap').scrollIntoView({behavior:'smooth'})"><b>⌘</b>Systems</button>
+      <button onclick="document.getElementById('history').scrollIntoView({behavior:'smooth'})"><b>⚙</b>Parts</button>
       <button onclick="exportDatabaseBackup()"><b>⇩</b>Backup</button>
     </div>
   </div>
@@ -152,7 +152,6 @@
 <section class="section vh-shell" id="vehicleHealth">
   <div class="vh-nav">
     <button onclick="document.getElementById('vehicleHealth').scrollIntoView({behavior:'smooth'})">Health</button>
-    <button onclick="document.getElementById('systemsMap').scrollIntoView({behavior:'smooth'})">Systems Map</button>
     <button onclick="document.getElementById('fluids').scrollIntoView({behavior:'smooth'})">Fluids & Parts</button>
     <button onclick="document.getElementById('history').scrollIntoView({behavior:'smooth'})">Repair History</button>
     <button onclick="document.getElementById('nextBudget').scrollIntoView({behavior:'smooth'})">Next Budget</button>
@@ -189,35 +188,6 @@
   </div>
 </section>
 
-<section class="section systems-map-section" id="systemsMap">
-  <div class="section-head systems-map-heading">
-    <div>
-      <div class="label">Interactive vehicle anatomy</div>
-      <h2>Car Systems Map.</h2>
-    </div>
-    <p>ดูรถเป็นระบบเหมือน exploded list — แตะระบบเพื่อดู Part ที่มีอยู่จริงในฐานข้อมูล, Remaining Life, ราคาอ้างอิง และประวัติซ่อม.</p>
-  </div>
-
-  <div class="systems-map-shell">
-    <div class="systems-map-visual">
-      <img src="./systems-map.webp" alt="Honda Civic ES car systems map" loading="lazy" decoding="async">
-      <div class="systems-map-visual-caption">
-        <div><span class="systems-map-pulse"></span> Honda Civic ES · K20A</div>
-        <small>12 vehicle systems · tap a card below to explore</small>
-      </div>
-    </div>
-
-    <div class="systems-list-head">
-      <div>
-        <small>Vehicle architecture</small>
-        <h3>All Systems</h3>
-      </div>
-      <span id="systemsTrackedCount">—</span>
-    </div>
-
-    <div id="systemMapGrid" class="system-map-grid"></div>
-  </div>
-</section>
 
 <section class="section" id="fluids">
   <div class="section-head">
@@ -323,10 +293,10 @@
       <div class="label">Repair / maintenance archive</div>
       <h2>Health + Parts History.</h2>
     </div>
-    <p>หน้า Status และ Parts History อิงรายการ PM จาก Civic es(3).xlsx พร้อม Reference Price สำหรับเช็กราคา Lazada/Shopee; ราคาเป็นงบอ้างอิง ไม่ใช่ราคาที่จ่ายจริง.</p>
+    <p>แสดงประวัติที่บันทึกไว้ทั้งหมด ทั้ง PM เดิมและรายการที่เพิ่มเอง พร้อมรูป Part, วันที่, เลขไมล์, ค่าใช้จ่าย และ Reference Price ที่แก้เองได้.</p>
   </div>
 
-  <div style="margin:-6px 0 12px;color:#8a9098;font-size:12px">Showing status only for image-backed PM items from Civic es(3).xlsx.</div>
+  <div style="margin:-6px 0 12px;color:#8a9098;font-size:12px">Showing all saved service / repair records. PM calculations still use the PM catalog.</div>
   <div class="history-toolbar">
     <input id="search" placeholder="Search repaired part…" oninput="render()">
     <select id="systemFilter" onchange="render()">
@@ -372,6 +342,8 @@
       <div class="storage-card"><small>Persistence</small><strong id="persistenceStatus">Checking…</strong></div>
       <div class="storage-card"><small>Last JSON Backup</small><strong id="lastBackupStatus">Never</strong></div>
       <div class="storage-card"><small>Backup Age</small><strong id="backupAgeStatus">Never</strong></div>
+      <div class="storage-card"><small>Estimated Backup</small><strong id="backupSizeEstimate">Calculating…</strong></div>
+      <div class="storage-card"><small>User Images</small><strong id="imageStorageEstimate">Calculating…</strong></div>
     </div>
 
     <div class="storage-actions">
@@ -391,7 +363,7 @@
 
 </main>
 
-<div class="modal" id="historyModal">
+<div class="modal" id="historyModal" role="dialog" aria-modal="true" aria-labelledby="historyModalTitle">
   <div class="modal-box">
     <h3 id="historyModalTitle">Add repaired part</h3>
     <div class="form-grid">
@@ -406,10 +378,10 @@
       <label>Brand<input id="fPartBrand" placeholder="Optional"></label>
       <label>Part number<input id="fPartNumber" placeholder="Optional"></label>
       <label>Warranty (months)<input id="fWarrantyMonths" type="number" min="0" inputmode="numeric" placeholder="0"></label>
-      <label>Receipt / invoice photo<input id="fReceipt" type="file" accept="image/*"></label>
+      <label>Receipt / invoice photo<input id="fReceipt" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></label>
       <label>Next interval (km)<input id="fIntervalKm" type="number" min="0"></label>
       <label>Next interval (months)<input id="fIntervalMonths" type="number" min="0"></label>
-      <label>Part image<input id="fImage" type="file" accept="image/*"></label>
+      <label>Part image<input id="fImage" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"></label>
       <label class="full">Note<textarea id="fNote"></textarea></label>
     </div>
     <div class="modal-actions">
@@ -442,7 +414,7 @@
         <div class="detail-note" id="partDetailNote"></div>
       </div>
     </div>
-    <div class="receipt-preview" id="partDetailReceiptWrap" hidden><small>Receipt / invoice</small><img id="partDetailReceipt" alt="Receipt or invoice"></div>
+    <div class="receipt-preview" id="partDetailReceiptWrap" hidden><small>Receipt / invoice</small><img id="partDetailReceipt" alt="Receipt or invoice" onerror="hideBrokenReceipt(this)"></div>
     <div class="modal-actions detail-actions">
       <button class="btn danger-action" id="partDetailDelete">Delete</button>
       <button class="btn" id="partDetailEdit">Edit</button>
@@ -452,28 +424,10 @@
 </div>
 
 
-<div class="modal" id="systemExplorerModal" role="dialog" aria-modal="true" aria-labelledby="systemExplorerTitle">
-  <div class="modal-box system-explorer-box">
-    <div class="part-detail-head">
-      <div>
-        <div class="modal-kicker" id="systemExplorerKicker">Vehicle system</div>
-        <h3 id="systemExplorerTitle">System</h3>
-      </div>
-      <button class="detail-close" onclick="closeSystemExplorer()" aria-label="Close">×</button>
-    </div>
-    <p class="system-explorer-description" id="systemExplorerDescription"></p>
-    <div class="system-explorer-summary" id="systemExplorerSummary"></div>
-    <div class="system-explorer-list" id="systemExplorerList"></div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeSystemExplorer()">Close</button>
-      <button class="btn primary" id="systemExplorerAdd">+ Add service record</button>
-    </div>
-  </div>
-</div>
 
-<div class="modal" id="carModal">
+<div class="modal" id="carModal" role="dialog" aria-modal="true" aria-labelledby="carModalTitle">
   <div class="modal-box">
-    <h3>Vehicle Odometer</h3>
+    <h3 id="carModalTitle">Vehicle Odometer</h3>
     <div class="form-grid">
       <label>Current Odometer<input id="carKm" type="number" min="0"></label>
       <label>Average km / month<input id="monthlyKm" type="number" min="1"></label>
@@ -486,7 +440,7 @@
 </div>
 
 
-<div class="modal" id="symptomModal">
+<div class="modal" id="symptomModal" role="dialog" aria-modal="true" aria-labelledby="symptomModalTitle">
   <div class="modal-box">
     <h3 id="symptomModalTitle">Add Symptom</h3>
     <div class="form-grid">
@@ -513,7 +467,7 @@
   </div>
 </div>
 
-<div class="modal" id="healthDetailModal">
+<div class="modal" id="healthDetailModal" role="dialog" aria-modal="true" aria-labelledby="healthDetailTitle">
   <div class="modal-box">
     <h3 id="healthDetailTitle">System Health</h3>
     <div id="healthDetailSummary" class="confidence"></div>
