@@ -327,32 +327,35 @@ function reportPersistFailure(error){
   return failure;
 }
 
-function enqueueStateWrite(snapshot,{applyToMemory=false}={}){
+function enqueueStateWrite(snapshot,{applyToMemory=false,markRecordDirty=false}={}){
   const candidate=cloneValue(snapshot);
   const write=persistChain.catch(()=>{}).then(()=>writeDatabaseCandidate(db,candidate,idbWriteState));
   persistChain=write.then(async saved=>{
     lastPersistError=null;
     lastPersistedSnapshot=cloneValue(saved);
     if(applyToMemory)db=cloneValue(saved);
+    if(markRecordDirty&&typeof markRecordFileDirty==='function'){
+      try{markRecordFileDirty();}catch(error){console.warn('Record file state update failed',error);}
+    }
     try{await updateStorageStatus();}catch(error){console.warn('Storage status update failed',error);}
     return cloneValue(saved);
   },error=>{throw reportPersistFailure(error);});
   return persistChain;
 }
 
-async function persistNow(){
+async function persistNow({markRecordDirty=false}={}){
   clearTimeout(persistTimer);persistTimer=null;
-  return enqueueStateWrite(db);
+  return enqueueStateWrite(db,{markRecordDirty});
 }
 
-async function commitDatabaseCandidate(candidate){
+async function commitDatabaseCandidate(candidate,{markRecordDirty=true}={}){
   clearTimeout(persistTimer);persistTimer=null;
-  return enqueueStateWrite(candidate,{applyToMemory:true});
+  return enqueueStateWrite(candidate,{applyToMemory:true,markRecordDirty});
 }
 
 function persist(){
   clearTimeout(persistTimer);
-  persistTimer=setTimeout(()=>{persistTimer=null;persistNow().catch(()=>{});},120);
+  persistTimer=setTimeout(()=>{persistTimer=null;persistNow({markRecordDirty:true}).catch(()=>{});},120);
 }
 
 async function bootDatabase(){

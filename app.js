@@ -2,7 +2,7 @@
 
 const KEY='clean-garage-v10-vehicle-health';
 const LEGACY_KEYS=['clean-garage-v8-parts-with-images','clean-garage-v7-single-hero-history','car-maintenance-life-v4-simple'];
-const APP_VERSION='10.18.7';
+const APP_VERSION='10.19.1';
 const SCHEMA_VERSION=17;
 const STORAGE_LIMITS=Object.freeze({
   uploadInputBytes:12*1024*1024,
@@ -71,7 +71,7 @@ function renderPartsLife(){
   }).join(''):'<div class="empty">No part with complete lifecycle data.</div>';
 }
 function populateSystemSelect(){sSystem.innerHTML=SYSTEMS.filter(x=>x!=='Fluids').map(x=>`<option>${x}</option>`).join('')}
-function openSymptomModal(prefill={}){editingSymptomId=null;populateSystemSelect();symptomModalTitle.textContent='Add Symptom';sDate.value=prefill.date||todayIso();sKm.value=prefill.km??db.car.km;sSystem.value=prefill.system||'Engine';sName.value=prefill.name||'';sSeverity.value=prefill.severity||3;sStatus.value=prefill.status||'Active';sEngineState.value='';sRpm.value='';sCoolantTemp.value='';sAtfTemp.value='';sAc.value='';sGear.value='';sSpeed.value='';sAmbient.value='';sNote.value=prefill.note||'';symptomModal.classList.add('show')}
+function openSymptomModal(prefill={}){editingSymptomId=null;populateSystemSelect();symptomModalTitle.textContent='Add Symptom';sDate.value=prefill.date||todayIso();sKm.value=prefill.km??db.car.km;sSystem.value=prefill.system||'Engine';sName.value=prefill.name||'';sSeverity.value=prefill.severity||3;sStatus.value=prefill.status||'Active';sEngineState.value='';sRpm.value='';sCoolantTemp.value='';sAtfTemp.value='';sAc.value='';sGear.value='';sSpeed.value='';sAmbient.value='';sNote.value=prefill.note||'';showModal(symptomModal)}
 function closeSymptomModal(){symptomModal.classList.remove('show')}
 function symptomFromForm(id){return {id:id||uid('sym'),vehicleId:db.car.id,date:sDate.value,km:Number(sKm.value||db.car.km),system:sSystem.value,name:sName.value.trim(),severity:Number(sSeverity.value),status:sStatus.value,conditions:{engineState:sEngineState.value,rpm:numOrNull(sRpm.value),coolantTemp:numOrNull(sCoolantTemp.value),atfTemp:numOrNull(sAtfTemp.value),ac:sAc.value,gear:sGear.value,speed:numOrNull(sSpeed.value),ambient:numOrNull(sAmbient.value)},note:sNote.value.trim(),updatedAt:nowIso()}}
 function numOrNull(v){return v===''?null:Number(v)}
@@ -161,6 +161,15 @@ function mobileNavigate(tab,button){
   document.querySelectorAll('.mobile-tabbar button[data-mobile-nav]').forEach(b=>b.classList.remove('active'));
   if(button?.dataset?.mobileNav)button.classList.add('active');
 }
+function showModal(modal){
+  if(!modal)return;
+  const box=modal.querySelector('.modal-box');
+  modal.classList.add('show');
+  if(box){
+    box.scrollTop=0;
+    requestAnimationFrame(()=>{box.scrollTop=0});
+  }
+}
 
 function renderAll(){refreshAlerts();const o=renderHealth();renderLegacyKpi(o);renderAlerts();renderForecast();renderFluids();renderPartsLife();renderNextBudget();renderHistory();renderMobileDashboard();heroKm.textContent=fmt(db.car.km)}
 function render(){renderAll()}
@@ -172,7 +181,7 @@ function resetHistoryExtraFields(){
 function openHistoryModal(){
   editingId=null;replacementMode=false;historyModalTitle.textContent='Add service record';
   ['fPart','fSystem','fDate','fKm','fPrice','fReferencePrice','fIntervalKm','fIntervalMonths','fNote'].forEach(id=>document.getElementById(id).value='');
-  resetHistoryExtraFields();fDate.value=todayIso();fKm.value=db.car.km;fImage.value='';fEventType.value='part_replacement';historyModal.classList.add('show');
+  resetHistoryExtraFields();fDate.value=todayIso();fKm.value=db.car.km;fImage.value='';fEventType.value='part_replacement';showModal(historyModal);
 }
 function closeHistoryModal(){replacementMode=false;historyModal.classList.remove('show')}
 function fillHistoryForm(r,{replacement=false}={}){
@@ -183,7 +192,7 @@ function fillHistoryForm(r,{replacement=false}={}){
   fIntervalKm.value=r.intervalKm||'';fIntervalMonths.value=r.intervalMonths||'';fNote.value=r.note||'';
   fEventType.value=r.eventType||'part_replacement';fImage.value='';fWorkshop.value=r.workshop||'';fPartBrand.value=r.partBrand||'';fPartNumber.value=r.partNumber||'';fWarrantyMonths.value=r.warrantyMonths||'';fReceipt.value='';
 }
-function editHistory(id){const r=db.history.find(x=>x.id===id);if(!r)return;editingId=id;replacementMode=false;historyModalTitle.textContent='Edit service record';fillHistoryForm(r);historyModal.classList.add('show')}
+function editHistory(id){const r=db.history.find(x=>x.id===id);if(!r)return;editingId=id;replacementMode=false;historyModalTitle.textContent='Edit service record';fillHistoryForm(r);showModal(historyModal)}
 const SUPPORTED_IMAGE_TYPES=new Set(['image/jpeg','image/jpg','image/png','image/webp']);
 function validateImageFile(file,label='Image'){
   if(!file)throw new Error(label+' is missing');
@@ -408,7 +417,7 @@ async function quickPhoto(id,e){
     alert(message||'Part image could not be saved');
   }finally{e.target.value='';}
 }
-function markReplaced(id){const r=db.history.find(x=>x.id===id);if(!r)return;editingId=id;replacementMode=true;historyModalTitle.textContent=`Record ${r.part} replacement`;fillHistoryForm(r,{replacement:true});historyModal.classList.add('show')}
+function markReplaced(id){const r=db.history.find(x=>x.id===id);if(!r)return;editingId=id;replacementMode=true;historyModalTitle.textContent=`Record ${r.part} replacement`;fillHistoryForm(r,{replacement:true});showModal(historyModal)}
 function removeHistory(id){if(!confirm('ลบประวัติรายการนี้?'))return;db.history=db.history.filter(x=>x.id!==id);if(detailRecordId===id)closePartDetails();persist();renderAll()}
 function openPartDetails(id){
   const r=db.history.find(x=>x.id===id);if(!r)return;detailRecordId=id;
@@ -421,11 +430,11 @@ function openPartDetails(id){
   partDetailNote.textContent=r.note||'No note';
   partDetailReceiptWrap.hidden=!r.receiptImage;if(r.receiptImage)partDetailReceipt.src=r.receiptImage;else partDetailReceipt.removeAttribute('src');
   partDetailDelete.onclick=()=>removeHistory(id);partDetailEdit.onclick=()=>{closePartDetails();editHistory(id)};partDetailReplace.onclick=()=>{closePartDetails();markReplaced(id)};
-  partDetailModal.classList.add('show');
+  showModal(partDetailModal);
 }
 function closePartDetails(){detailRecordId=null;partDetailModal.classList.remove('show')}
 
-function openCarModal(){carKm.value=db.car.km;monthlyKm.value=db.car.monthlyKm||1200;carModal.classList.add('show')}
+function openCarModal(){carKm.value=db.car.km;monthlyKm.value=db.car.monthlyKm||1200;showModal(carModal)}
 function validateVehicleMileage(km){if(!Number.isFinite(km)||km<0)return {ok:false,message:'Mileage ไม่ถูกต้อง'};const maxKnown=Math.max(0,...db.history.map(r=>Number(r.km||0)),...db.symptoms.map(s=>Number(s.km||0)),...db.inspections.map(i=>Number(i.km||0)));if(km<maxKnown)return {ok:false,message:`Current mileage (${fmt(km)}) cannot be lower than recorded mileage (${fmt(maxKnown)}).`};return {ok:true}}
 function saveCar(){const km=Number(carKm.value||0),monthly=positiveNumber(monthlyKm.value,0),v=validateVehicleMileage(km);if(!v.ok){alert(v.message);return}if(!monthly){alert('Average km / month must be greater than 0.');return}db.car.km=km;db.car.monthlyKm=monthly;persist();carModal.classList.remove('show');renderAll()}
 

@@ -1,6 +1,8 @@
 'use strict';
 
 const BACKUP_FORMAT='clean-garage-backup';
+const RECORD_FILE_NAME='CleanGarage_Record.json';
+const RECORD_FILE_STATE_KEY='clean-garage-record-file-state-v1';
 const BACKUP_FORMAT_VERSION=2;
 const BACKUP_BYTE_LIMIT=typeof MAX_BACKUP_BYTES==='number'?MAX_BACKUP_BYTES:100*1024*1024;
 let pendingRestore=null;
@@ -13,7 +15,7 @@ function parseBackupText(text){
 
 function createBackupPayload(database,exportedAt){
   const stamp=String(exportedAt||database?.settings?.lastBackupAt||'');
-  const appVersion=typeof APP_VERSION==='string'?APP_VERSION:'10.18.7';
+  const appVersion=typeof APP_VERSION==='string'?APP_VERSION:'10.19.1';
   return {
     format:BACKUP_FORMAT,
     version:BACKUP_FORMAT_VERSION,
@@ -26,7 +28,7 @@ function createBackupPayload(database,exportedAt){
   };
 }
 
-function safeBackupName(){return `clean-garage-backup-${todayIso()}.json`;}
+function safeBackupName(){return RECORD_FILE_NAME;}
 
 function backupSummary(database){
   const history=Array.isArray(database?.history)?database.history:[];
@@ -114,6 +116,112 @@ function validateBackup(raw){
   return {metadata,database:cloneValue(database),migrated,summary:backupSummary(migrated)};
 }
 
+
+function defaultRecordFileState(){
+  return {dirty:true,lastSavedAt:'',lastLoadedAt:'',fileName:RECORD_FILE_NAME};
+}
+
+function loadRecordFileState(){
+  const fallback=defaultRecordFileState();
+  try{
+    if(typeof localStorage==='undefined')return fallback;
+    const raw=localStorage.getItem(RECORD_FILE_STATE_KEY);
+    if(!raw)return fallback;
+    const parsed=JSON.parse(raw);
+    if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))return fallback;
+    return {
+      dirty:parsed.dirty!==false,
+      lastSavedAt:String(parsed.lastSavedAt||''),
+      lastLoadedAt:String(parsed.lastLoadedAt||''),
+      fileName:String(parsed.fileName||RECORD_FILE_NAME)
+    };
+  }catch(error){
+    return fallback;
+  }
+}
+
+function saveRecordFileState(patch){
+  const current=loadRecordFileState();
+  const next={...current,...patch,fileName:RECORD_FILE_NAME};
+  try{
+    if(typeof localStorage!=='undefined')localStorage.setItem(RECORD_FILE_STATE_KEY,JSON.stringify(next));
+  }catch(error){
+    console.warn('Could not persist Record file status',error);
+  }
+  updateRecordFileStatus();
+  return next;
+}
+
+function markRecordFileDirty(){
+  return saveRecordFileState({dirty:true});
+}
+
+function markRecordFileClean({savedAt='',loadedAt=''}={}){
+  const patch={dirty:false};
+  if(savedAt)patch.lastSavedAt=String(savedAt);
+  if(loadedAt)patch.lastLoadedAt=String(loadedAt);
+  return saveRecordFileState(patch);
+}
+
+function recordFileStatusLabel(state=loadRecordFileState()){
+  if(state.dirty)return state.lastSavedAt?'Unsaved changes':'Not saved yet';
+  return 'Up to date';
+}
+
+function updateRecordFileStatus(){
+  if(typeof document==='undefined')return;
+  const state=loadRecordFileState();
+  const badge=document.getElementById('recordFileBadge');
+  const dirty=document.getElementById('backupAgeStatus');
+  const file=document.getElementById('recordFileName');
+  const currentKm=document.getElementById('recordCurrentKm');
+  const last=document.getElementById('lastBackupStatus');
+  if(badge){
+    badge.textContent=recordFileStatusLabel(state);
+    badge.classList.toggle('record-dirty',state.dirty);
+    badge.classList.toggle('record-clean',!state.dirty);
+  }
+  if(dirty){
+    dirty.textContent=recordFileStatusLabel(state);
+    dirty.classList.toggle('storage-warning',state.dirty);
+  }
+  if(file)file.textContent=RECORD_FILE_NAME;
+  if(currentKm&&typeof db!=='undefined')currentKm.textContent=fmt(Number(db?.car?.km||0))+' km';
+  const savedAt=state.lastSavedAt||db?.settings?.lastRecordSavedAt||db?.settings?.lastBackupAt||'';
+  if(last)last.textContent=savedAt?dateFmt(savedAt):'Never';
+}
+
+async function deliverRecordFile(blob,fileName){
+  const isMobile=(typeof matchMedia==='function'&&matchMedia('(max-width:760px)').matches)
+    ||(typeof navigator!=='undefined'&&/Android|iPhone|iPad|iPod/i.test(String(navigator.userAgent||'')));
+  if(isMobile&&typeof navigator!=='undefined'&&typeof navigator.share==='function'&&typeof File!=='undefined'){
+    try{
+      const file=new File([blob],fileName,{type:'application/json'});
+      if(typeof navigator.canShare!=='function'||navigator.canShare({files:[file]})){
+        await navigator.share({
+          title:'Clean Garage Record',
+          text:'Save this file to Files, iCloud Drive, Google Drive, or another location you can access from your other device.',
+          files:[file]
+        });
+        return 'shared';
+      }
+    }catch(error){
+      if(error?.name==='AbortError')return 'cancelled';
+      console.warn('Record share failed; falling back to download',error);
+    }
+  }
+  if(typeof document==='undefined'||typeof URL==='undefined')return 'unavailable';
+  const url=URL.createObjectURL(blob);
+  const anchor=document.createElement('a');
+  anchor.href=url;
+  anchor.download=fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  return 'downloaded';
+}
+
 function backupAge(lastBackupAt,now=new Date()){
   if(!lastBackupAt)return {days:null,label:'Never',stale:true};
   const date=new Date(lastBackupAt);
@@ -123,16 +231,17 @@ function backupAge(lastBackupAt,now=new Date()){
 }
 
 function updateBackupStatus(){
-  const stamp=db?.settings?.lastBackupAt||'';
+  const state=loadRecordFileState();
+  const stamp=state.lastSavedAt||db?.settings?.lastRecordSavedAt||db?.settings?.lastBackupAt||'';
   const age=backupAge(stamp);
-  const last=document.getElementById('lastBackupStatus');
-  const ageElement=document.getElementById('backupAgeStatus');
   const warning=document.getElementById('backupWarning');
-  if(last)last.textContent=stamp?dateFmt(stamp):'Never';
-  if(ageElement){ageElement.textContent=age.label;ageElement.classList.toggle('storage-warning',age.stale);}
+  updateRecordFileStatus();
   if(warning){
-    warning.hidden=!age.stale;
-    warning.textContent=stamp?'Backup is more than 30 days old. Create a fresh JSON snapshot.':'No JSON backup has been created on this device yet.';
+    const dirty=!!state.dirty;
+    warning.hidden=!dirty&&!age.stale;
+    if(dirty)warning.textContent='This device has newer changes than your Record file. Tap SAVE RECORD FILE before switching devices.';
+    else if(age.stale)warning.textContent='Your last Record file is more than 30 days old. Save a fresh copy when convenient.';
+    else warning.textContent='';
   }
   const metrics=backupStorageMetrics(db);
   const backupEstimate=document.getElementById('backupSizeEstimate');
@@ -144,27 +253,51 @@ function updateBackupStatus(){
 async function exportDatabaseBackup(){
   const exportedAt=nowIso();
   const candidate=cloneValue(db);
-  candidate.settings={...(candidate.settings||{}),lastBackupAt:exportedAt};
+  candidate.settings={
+    ...(candidate.settings||{}),
+    lastBackupAt:exportedAt,
+    lastRecordSavedAt:exportedAt
+  };
   const serialized=serializeBackup(candidate,exportedAt);
   const blob=new Blob([serialized.json],{type:'application/json'});
   try{assertBackupSize(blob.size,'export');}
   catch(error){
-    console.error('Backup export refused',error);
+    console.error('Record file export refused',error);
     alert(error.message);
-    showDbToast('Backup not created');
+    showDbToast('Record file not created');
     return false;
   }
-  const url=URL.createObjectURL(blob);
-  const anchor=document.createElement('a');
-  anchor.href=url;anchor.download=safeBackupName();
-  document.body.appendChild(anchor);anchor.click();anchor.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
-  db.settings={...(db.settings||{}),lastBackupAt:exportedAt};
+
+  let delivered='unavailable';
+  try{
+    delivered=await deliverRecordFile(blob,RECORD_FILE_NAME);
+  }catch(error){
+    console.error('Record file delivery failed',error);
+    alert('Could not save the Record file. Your local database was not changed.');
+    return false;
+  }
+  if(delivered==='cancelled')return false;
+  if(delivered==='unavailable'){
+    alert('This browser could not save the Record file.');
+    return false;
+  }
+
+  db.settings={
+    ...(db.settings||{}),
+    lastBackupAt:exportedAt,
+    lastRecordSavedAt:exportedAt
+  };
   let timestampSaved=true;
-  try{await persistNow();}catch(error){timestampSaved=false;console.warn('Backup timestamp was not persisted',error);}
+  try{await persistNow({markRecordDirty:false});}
+  catch(error){timestampSaved=false;console.warn('Record saved timestamp was not persisted',error);}
+  markRecordFileClean({savedAt:exportedAt});
   updateBackupStatus();
-  if(timestampSaved)showDbToast('Backup snapshot created');
+  if(timestampSaved)showDbToast(delivered==='shared'?'Record ready to save/share':'Record file saved');
   return true;
+}
+
+async function saveRecordFile(){
+  return exportDatabaseBackup();
 }
 
 function setRestorePreview(result,fileName){
@@ -179,7 +312,7 @@ function setRestorePreview(result,fileName){
   document.getElementById('restoreHealth').textContent=String(summary.healthHistoryCount);
   document.getElementById('restoreImages').textContent=String(summary.customImageCount);
   document.getElementById('restoreReceipts').textContent=String(summary.receiptImageCount||0);
-  document.getElementById('restorePreviewModal').classList.add('show');
+  showModal(document.getElementById('restorePreviewModal'));
 }
 
 function closeRestorePreview(){
@@ -202,6 +335,11 @@ async function restoreDatabaseBackup(event){
   }
 }
 
+
+async function loadRecordFile(event){
+  return restoreDatabaseBackup(event);
+}
+
 async function commitRestoredDatabase(current,candidate,writers={}){
   const writeRecovery=writers.writeRecovery||idbWriteRecovery;
   const writeState=writers.writeState||idbWriteState;
@@ -218,18 +356,24 @@ async function confirmRestoreDatabase(){
   button.disabled=true;
   button.textContent='Restoring…';
   try{
+    const loadedMeta={...pendingRestore.metadata};
+    const loadedFileName=pendingRestore.fileName||RECORD_FILE_NAME;
     db=await commitRestoredDatabase(db,candidate,{
       writeRecovery:idbWriteRecovery,
-      writeState:snapshot=>commitDatabaseCandidate(snapshot)
+      writeState:snapshot=>commitDatabaseCandidate(snapshot,{markRecordDirty:false})
     });
     pendingRestore=null;
     modal.classList.remove('show');
+    const loadedAt=nowIso();
+    db.settings={...(db.settings||{}),lastRecordLoadedAt:loadedAt};
+    try{await persistNow({markRecordDirty:false});}catch(error){console.warn('Record load timestamp was not persisted',error);}
+    markRecordFileClean({savedAt:loadedMeta.exportedAt||db.settings?.lastRecordSavedAt||'',loadedAt});
     renderAll();
     await updateStorageStatus();
-    showDbToast('Database restored');
+    showDbToast(`Loaded ${loadedFileName}`);
   }catch(error){
     console.error('Restore failed',error);
-    alert('Restore failed. The current database was not replaced.');
+    alert('Load failed. The current database was not replaced.');
   }finally{
     button.disabled=false;
     button.textContent='Restore and replace';
@@ -237,5 +381,5 @@ async function confirmRestoreDatabase(){
 }
 
 if(typeof module!=='undefined'&&module.exports){
-  module.exports={BACKUP_FORMAT,BACKUP_FORMAT_VERSION,BACKUP_BYTE_LIMIT,isBackupObject,parseBackupText,createBackupPayload,backupSummary,backupByteLength,serializeBackup,assertBackupSize,backupStorageMetrics,formatStorageBytes,validateBackup,backupAge,commitRestoredDatabase};
+  module.exports={BACKUP_FORMAT,BACKUP_FORMAT_VERSION,BACKUP_BYTE_LIMIT,RECORD_FILE_NAME,RECORD_FILE_STATE_KEY,isBackupObject,parseBackupText,createBackupPayload,backupSummary,backupByteLength,serializeBackup,assertBackupSize,backupStorageMetrics,formatStorageBytes,validateBackup,backupAge,defaultRecordFileState,recordFileStatusLabel,commitRestoredDatabase};
 }

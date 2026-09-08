@@ -323,15 +323,40 @@
 <section class="section" id="localDatabase">
   <div class="section-head">
     <div>
-      <div class="label">Offline data layer</div>
+      <div class="label">Local-first record</div>
       <h2>Local Database.</h2>
     </div>
-    <p>ข้อมูลรถเก็บใน IndexedDB ของเครื่องนี้ ไม่ต้องมี Cloud Database และ Service Worker ทำให้เปิดเว็บจาก Home Screen ได้แม้ไม่มีอินเทอร์เน็ตหลังโหลดครั้งแรก.</p>
+    <p>ข้อมูลรถเก็บใน IndexedDB ของเครื่องที่กำลังใช้งาน ถ้าจะย้ายข้อมูลระหว่างมือถือกับคอม ให้กด SAVE RECORD FILE บนอุปกรณ์ที่มีข้อมูลล่าสุด แล้ว LOAD RECORD FILE ไฟล์เดียวกันบนอีกอุปกรณ์.</p>
   </div>
 
   <div class="storage-panel">
-    <div class="vh-card-head">
-      <h3>Device Storage & Backup</h3>
+    <div class="record-file-panel" aria-labelledby="recordFileTitle">
+      <div class="record-file-head">
+        <div>
+          <small>Simple cross-device record</small>
+          <h3 id="recordFileTitle">My Record</h3>
+        </div>
+        <strong id="recordFileBadge">Not saved yet</strong>
+      </div>
+
+      <div class="record-file-metrics">
+        <div><small>Current KM</small><strong id="recordCurrentKm">—</strong></div>
+        <div><small>Last Saved</small><strong id="lastBackupStatus">Never</strong></div>
+        <div><small>Status</small><strong id="backupAgeStatus">Not saved yet</strong></div>
+        <div><small>File</small><strong id="recordFileName">CleanGarage_Record.json</strong></div>
+      </div>
+
+      <div class="record-file-actions">
+        <button class="primary" onclick="saveRecordFile()">SAVE RECORD FILE</button>
+        <label for="restoreDbInput">LOAD RECORD FILE</label>
+        <input id="restoreDbInput" type="file" accept=".json,application/json" style="display:none" onchange="loadRecordFile(event)">
+      </div>
+
+      <p class="record-file-hint"><b>มือถือ:</b> กด Save แล้วเลือก Save to Files / iCloud Drive / Google Drive จาก Share Sheet. <b>คอม:</b> ไฟล์จะดาวน์โหลดเป็น <code>CleanGarage_Record.json</code>. ก่อนเปลี่ยนอุปกรณ์ให้ Save จากเครื่องที่มีข้อมูลล่าสุด แล้ว Load ไฟล์นั้นบนอีกเครื่อง.</p>
+    </div>
+
+    <div class="vh-card-head storage-tech-head">
+      <h3>Device Storage</h3>
       <small id="dbStatus">Starting…</small>
     </div>
 
@@ -340,23 +365,19 @@
       <div class="storage-card"><small>Stored Data</small><strong id="dbUsage">Calculating…</strong></div>
       <div class="storage-card"><small>Offline App</small><strong id="offlineStatus">Checking…</strong></div>
       <div class="storage-card"><small>Persistence</small><strong id="persistenceStatus">Checking…</strong></div>
-      <div class="storage-card"><small>Last JSON Backup</small><strong id="lastBackupStatus">Never</strong></div>
-      <div class="storage-card"><small>Backup Age</small><strong id="backupAgeStatus">Never</strong></div>
-      <div class="storage-card"><small>Estimated Backup</small><strong id="backupSizeEstimate">Calculating…</strong></div>
+      <div class="storage-card"><small>Record File Size</small><strong id="backupSizeEstimate">Calculating…</strong></div>
       <div class="storage-card"><small>User Images</small><strong id="imageStorageEstimate">Calculating…</strong></div>
     </div>
 
     <div class="storage-actions">
       <button class="primary" id="installPwaBtn" onclick="installCleanGarage()" style="display:none">Install App</button>
-      <button onclick="exportDatabaseBackup()">Backup Database</button>
-      <label for="restoreDbInput">Restore Database</label>
-      <input id="restoreDbInput" type="file" accept=".json,application/json" style="display:none" onchange="restoreDatabaseBackup(event)">
       <button onclick="requestPersistentStorage()">Protect Storage</button>
     </div>
 
     <div class="backup-warning" id="backupWarning" hidden></div>
+
     <div class="storage-note">
-      <b>IndexedDB</b> คือฐานข้อมูลที่แอปใช้งานสดบนอุปกรณ์นี้ ส่วน <b>Backup JSON</b> คือ snapshot ณ เวลาที่ดาวน์โหลด ไม่ใช่ cloud sync แบบ realtime. Backup รวม PM, Repair History, ราคา, อาการ, Health History, Settings และรูปที่ผู้ใช้เพิ่มไว้.
+      <b>IndexedDB</b> คือข้อมูลใช้งานจริงของอุปกรณ์นี้. <b>CleanGarage_Record.json</b> คือไฟล์สำหรับย้ายข้อมูลระหว่างมือถือ/คอมและสำรองฉุกเฉิน. GitHub Pages ยังทำหน้าที่โฮสต์เว็บอย่างเดียว ไม่มี Token, Cloudflare Worker หรือ Cloud Database.
     </div>
   </div>
 </section>
@@ -504,8 +525,8 @@
 
 <div class="modal" id="restorePreviewModal" role="dialog" aria-modal="true" aria-labelledby="restorePreviewTitle">
   <div class="modal-box restore-preview">
-    <div class="modal-kicker">Validated backup preview</div>
-    <h3 id="restorePreviewTitle">Review before restore</h3>
+    <div class="modal-kicker">Validated Record file</div>
+    <h3 id="restorePreviewTitle">Review before load</h3>
     <p class="restore-file"><b id="restoreFileName">—</b><span id="restoreExportedAt">—</span></p>
     <div class="restore-summary">
       <div><small>Vehicle</small><strong id="restoreVehicle">—</strong></div>
@@ -516,10 +537,10 @@
       <div><small>Custom images</small><strong id="restoreImages">0</strong></div>
       <div><small>Receipts</small><strong id="restoreReceipts">0</strong></div>
     </div>
-    <p class="restore-warning">Restoring replaces the live local database only after validation succeeds. A recovery snapshot of the current database is created first.</p>
+    <p class="restore-warning">Loading replaces the live local database only after validation succeeds. A recovery snapshot of the current database is created first.</p>
     <div class="modal-actions">
       <button class="btn" onclick="closeRestorePreview()">Cancel</button>
-      <button class="btn primary" id="confirmRestoreBtn" onclick="confirmRestoreDatabase()">Restore and replace</button>
+      <button class="btn primary" id="confirmRestoreBtn" onclick="confirmRestoreDatabase()">Load and replace</button>
     </div>
   </div>
 </div>
