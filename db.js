@@ -384,6 +384,10 @@ async function bootDatabase(){
     renderAll();
     try{await persistNow();}catch(error){console.warn('Post-boot database save failed',error);}
     await updateStorageStatus();
+    if(typeof checkSharedRecordFile==='function'){
+      try{await checkSharedRecordFile({autoApply:true});}
+      catch(error){console.warn('Shared Record check failed',error);}
+    }
   }catch(error){
     console.error('Database boot failed',error);
     lastPersistedSnapshot=stored?cloneValue(stored):null;

@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME='clean-garage-v10.19.1';
+const CACHE_NAME='clean-garage-v10.19.2';
 const CORE_ASSETS=[
   "./",
   "./index.html",
@@ -73,6 +73,7 @@ self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
   const url=new URL(event.request.url);
   if(url.origin!==self.location.origin)return;
+  if(url.pathname.endsWith('/CleanGarage_Record.json')){event.respondWith(networkFirst(event.request));return;}
   if(event.request.mode==='navigate'){event.respondWith(networkFirst(event.request));return;}
   event.respondWith(cacheFirst(event.request));
 });

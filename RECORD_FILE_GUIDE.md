@@ -21,3 +21,16 @@
 - ไม่มี Cloudflare Worker
 - ไม่มี Cloud Database
 - JSON format เดิมยังรองรับ Backup รุ่นเก่า
+
+
+## Shared Record ผ่าน GitHub Pages (V10.19.2)
+1. บนอุปกรณ์ที่มีข้อมูลล่าสุด กด `SAVE RECORD FILE`
+2. จะได้ `CleanGarage_Record.json`
+3. อัปโหลด/Replace ไฟล์นี้ใน GitHub repo ตรง root เดียวกับ `index.html`
+4. รอ GitHub Pages deploy
+5. เปิด Clean Garage บนมือถือ
+6. แอปจะเช็ก `./CleanGarage_Record.json` อัตโนมัติ
+7. ถ้าไฟล์ใหม่กว่าและมือถือไม่มี `Unsaved changes` ระบบจะโหลดให้อัตโนมัติ
+8. ถ้ามือถือมี `Unsaved changes` ระบบจะไม่เขียนทับ และจะแสดง `LOAD SHARED RECORD`
+
+Privacy: ถ้า GitHub Pages เปิดสาธารณะ `CleanGarage_Record.json` ก็เปิดอ่านจากอินเทอร์เน็ตได้

@@ -352,7 +352,18 @@
         <input id="restoreDbInput" type="file" accept=".json,application/json" style="display:none" onchange="loadRecordFile(event)">
       </div>
 
-      <p class="record-file-hint"><b>มือถือ:</b> กด Save แล้วเลือก Save to Files / iCloud Drive / Google Drive จาก Share Sheet. <b>คอม:</b> ไฟล์จะดาวน์โหลดเป็น <code>CleanGarage_Record.json</code>. ก่อนเปลี่ยนอุปกรณ์ให้ Save จากเครื่องที่มีข้อมูลล่าสุด แล้ว Load ไฟล์นั้นบนอีกเครื่อง.</p>
+      <div class="shared-record-row">
+        <div>
+          <small>GitHub Pages shared Record</small>
+          <strong id="sharedRecordStatus">Checking…</strong>
+          <span id="sharedRecordNote">Looking for CleanGarage_Record.json…</span>
+        </div>
+        <button id="loadSharedRecordBtn" hidden onclick="loadSharedRecordFile()">LOAD SHARED RECORD</button>
+      </div>
+
+      <p class="record-file-hint"><b>ให้มือถืออัปเดตอัตโนมัติ:</b> หลังจากกด Save บนเครื่องที่มีข้อมูลล่าสุด ให้อัปโหลด/Replace ไฟล์ <code>CleanGarage_Record.json</code> ไว้ที่ root เดียวกับ <code>index.html</code> บน GitHub Pages. เมื่อเปิดเว็บบนมือถือ ระบบจะเช็กไฟล์นี้และโหลดอัตโนมัติถ้าไฟล์ใหม่กว่าและมือถือไม่มี Unsaved changes. คุณยังสามารถใช้ LOAD RECORD FILE แบบเลือกไฟล์เองได้เหมือนเดิม.</p>
+
+      <p class="record-file-privacy"><b>Privacy:</b> ถ้า GitHub Pages ของคุณเปิดสาธารณะ ไฟล์ <code>CleanGarage_Record.json</code> ก็เปิดอ่านได้จาก URL เช่นกัน. อย่าใส่ใบเสร็จหรือข้อมูลส่วนตัวที่ไม่ต้องการเผยแพร่ใน Shared Record.</p>
     </div>
 
     <div class="vh-card-head storage-tech-head">
@@ -377,7 +388,7 @@
     <div class="backup-warning" id="backupWarning" hidden></div>
 
     <div class="storage-note">
-      <b>IndexedDB</b> คือข้อมูลใช้งานจริงของอุปกรณ์นี้. <b>CleanGarage_Record.json</b> คือไฟล์สำหรับย้ายข้อมูลระหว่างมือถือ/คอมและสำรองฉุกเฉิน. GitHub Pages ยังทำหน้าที่โฮสต์เว็บอย่างเดียว ไม่มี Token, Cloudflare Worker หรือ Cloud Database.
+      <b>IndexedDB</b> คือข้อมูลใช้งานจริงของอุปกรณ์นี้. <b>CleanGarage_Record.json</b> คือไฟล์สำหรับย้ายข้อมูลระหว่างมือถือ/คอมและสำรองฉุกเฉิน. GitHub Pages โฮสต์เว็บและเสิร์ฟ CleanGarage_Record.json แบบอ่านอย่างเดียวได้ ไม่มี Token, Cloudflare Worker หรือ Cloud Database. การ Save ยังเป็นการดาวน์โหลดไฟล์ แล้วคุณอัปโหลดไฟล์นั้นขึ้น repo เอง.
     </div>
   </div>
 </section>

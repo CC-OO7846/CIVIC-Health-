@@ -2058,3 +2058,23 @@ button,label[for]{touch-action:manipulation}
     line-height:1.55!important;
   }
 }
+
+
+/* V10.19.2 — Shared static Record on GitHub Pages */
+.shared-record-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding:12px 13px;border:1px solid #252a31;border-radius:12px;background:#090b0f}
+.shared-record-row>div{min-width:0}
+.shared-record-row small,.shared-record-row strong,.shared-record-row span{display:block}
+.shared-record-row small{color:#737b86;font-size:8px;letter-spacing:.08em;text-transform:uppercase}
+.shared-record-row strong{margin-top:3px;color:#eef1f4;font-size:11px}
+.shared-record-row span{margin-top:3px;color:#7f8792;font-size:9px;line-height:1.45}
+.shared-record-row button{flex:0 0 auto;min-height:40px;padding:8px 10px;border:1px solid #3b414b;border-radius:9px;background:#12161c;color:#f0f2f5;font-size:8px;font-weight:800}
+.record-file-privacy{margin:9px 0 0;padding:9px 10px;border-left:2px solid #775927;background:#120f08;color:#aa936b;font-size:9px;line-height:1.5}
+.record-file-privacy b{color:#d8b66f}
+@media(max-width:760px){
+  .shared-record-row{align-items:flex-start!important;flex-direction:column!important}
+  .shared-record-row small{font-size:9px!important}
+  .shared-record-row strong{font-size:11px!important}
+  .shared-record-row span{font-size:10px!important}
+  .shared-record-row button{width:100%!important;min-height:44px!important;font-size:10px!important}
+  .record-file-privacy{font-size:10px!important}
+}

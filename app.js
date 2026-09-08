@@ -2,7 +2,7 @@
 
 const KEY='clean-garage-v10-vehicle-health';
 const LEGACY_KEYS=['clean-garage-v8-parts-with-images','clean-garage-v7-single-hero-history','car-maintenance-life-v4-simple'];
-const APP_VERSION='10.19.1';
+const APP_VERSION='10.19.2';
 const SCHEMA_VERSION=17;
 const STORAGE_LIMITS=Object.freeze({
   uploadInputBytes:12*1024*1024,

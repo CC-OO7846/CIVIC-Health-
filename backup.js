@@ -3,6 +3,7 @@
 const BACKUP_FORMAT='clean-garage-backup';
 const RECORD_FILE_NAME='CleanGarage_Record.json';
 const RECORD_FILE_STATE_KEY='clean-garage-record-file-state-v1';
+const SHARED_RECORD_URL='./CleanGarage_Record.json';
 const BACKUP_FORMAT_VERSION=2;
 const BACKUP_BYTE_LIMIT=typeof MAX_BACKUP_BYTES==='number'?MAX_BACKUP_BYTES:100*1024*1024;
 let pendingRestore=null;
@@ -15,7 +16,7 @@ function parseBackupText(text){
 
 function createBackupPayload(database,exportedAt){
   const stamp=String(exportedAt||database?.settings?.lastBackupAt||'');
-  const appVersion=typeof APP_VERSION==='string'?APP_VERSION:'10.19.1';
+  const appVersion=typeof APP_VERSION==='string'?APP_VERSION:'10.19.2';
   return {
     format:BACKUP_FORMAT,
     version:BACKUP_FORMAT_VERSION,
@@ -118,7 +119,7 @@ function validateBackup(raw){
 
 
 function defaultRecordFileState(){
-  return {dirty:true,lastSavedAt:'',lastLoadedAt:'',fileName:RECORD_FILE_NAME};
+  return {dirty:false,lastSavedAt:'',lastLoadedAt:'',fileName:RECORD_FILE_NAME};
 }
 
 function loadRecordFileState(){
@@ -164,7 +165,8 @@ function markRecordFileClean({savedAt='',loadedAt=''}={}){
 }
 
 function recordFileStatusLabel(state=loadRecordFileState()){
-  if(state.dirty)return state.lastSavedAt?'Unsaved changes':'Not saved yet';
+  if(state.dirty)return (state.lastSavedAt||state.lastLoadedAt)?'Unsaved changes':'Local changes';
+  if(!state.lastSavedAt&&!state.lastLoadedAt)return 'Waiting for shared record';
   return 'Up to date';
 }
 
@@ -220,6 +222,127 @@ async function deliverRecordFile(blob,fileName){
   anchor.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
   return 'downloaded';
+}
+
+
+function parseIsoMs(value){
+  const ms=Date.parse(String(value||''));
+  return Number.isFinite(ms)?ms:0;
+}
+function localRecordReferenceTime(){
+  const state=loadRecordFileState();
+  return Math.max(
+    parseIsoMs(state.lastSavedAt),
+    parseIsoMs(state.lastLoadedAt),
+    parseIsoMs(db?.settings?.lastRecordSavedAt),
+    parseIsoMs(db?.settings?.lastRecordLoadedAt),
+    parseIsoMs(db?.settings?.lastBackupAt)
+  );
+}
+function setSharedRecordUi(status,message='',showLoad=false){
+  if(typeof document==='undefined')return;
+  const statusEl=document.getElementById('sharedRecordStatus');
+  const noteEl=document.getElementById('sharedRecordNote');
+  const button=document.getElementById('loadSharedRecordBtn');
+  if(statusEl)statusEl.textContent=status;
+  if(noteEl)noteEl.textContent=message;
+  if(button)button.hidden=!showLoad;
+}
+async function fetchSharedRecord(){
+  const url=SHARED_RECORD_URL+(SHARED_RECORD_URL.includes('?')?'&':'?')+'ts='+Date.now();
+  const response=await fetch(url,{cache:'no-store',headers:{Accept:'application/json'}});
+  if(response.status===404)return null;
+  if(!response.ok)throw new Error(`Shared Record HTTP ${response.status}`);
+  const declared=Number(response.headers.get('content-length')||0);
+  if(declared)assertBackupSize(declared,'restore');
+  const text=await response.text();
+  assertBackupSize(backupByteLength(text),'restore');
+  return validateBackup(parseBackupText(text));
+}
+async function applySharedRecord(result){
+  if(!result)return false;
+  const candidate=cloneValue(result.migrated);
+  db=await commitRestoredDatabase(db,candidate,{
+    writeRecovery:idbWriteRecovery,
+    writeState:snapshot=>commitDatabaseCandidate(snapshot,{markRecordDirty:false})
+  });
+  const loadedAt=nowIso();
+  db.settings={...(db.settings||{}),lastRecordLoadedAt:loadedAt};
+  try{await persistNow({markRecordDirty:false});}
+  catch(error){console.warn('Shared Record timestamp was not persisted',error);}
+  markRecordFileClean({savedAt:result.metadata.exportedAt||db.settings?.lastRecordSavedAt||'',loadedAt});
+  renderAll();
+  await updateStorageStatus();
+  updateBackupStatus();
+  return true;
+}
+async function checkSharedRecordFile({autoApply=false,forceLoad=false}={}){
+  setSharedRecordUi('Checking…','Looking for CleanGarage_Record.json in this GitHub Pages folder.',false);
+  let result;
+  try{result=await fetchSharedRecord();}
+  catch(error){
+    console.warn('Shared Record fetch failed',error);
+    setSharedRecordUi('Unavailable',error.message||'Could not read the shared Record file.',false);
+    return {status:'error',error};
+  }
+  if(!result){
+    setSharedRecordUi('Not found','Upload CleanGarage_Record.json to the same GitHub repository folder as index.html.',false);
+    return {status:'missing'};
+  }
+  const remoteTime=parseIsoMs(result.metadata.exportedAt);
+  const localTime=localRecordReferenceTime();
+  const state=loadRecordFileState();
+  if(!forceLoad&&remoteTime&&localTime&&remoteTime<=localTime){
+    setSharedRecordUi('Up to date',`Shared Record${result.metadata.exportedAt?' · '+dateFmt(result.metadata.exportedAt):''}`,false);
+    return {status:'current',result};
+  }
+  if(!forceLoad&&state.dirty){
+    setSharedRecordUi('Newer shared record available','This device has unsaved local changes. Save this device first, then load the shared Record to avoid overwriting local work.',true);
+    return {status:'conflict',result};
+  }
+  if(autoApply||forceLoad){
+    try{
+      await applySharedRecord(result);
+      setSharedRecordUi('Updated',`Loaded shared Record${result.metadata.exportedAt?' · '+dateFmt(result.metadata.exportedAt):''}`,false);
+      showDbToast('Shared Record updated from GitHub Pages');
+      return {status:'updated',result};
+    }catch(error){
+      console.error('Shared Record apply failed',error);
+      setSharedRecordUi('Load failed','Current local database was preserved.',true);
+      return {status:'apply-error',error,result};
+    }
+  }
+  setSharedRecordUi('Newer shared record available',`Shared Record${result.metadata.exportedAt?' · '+dateFmt(result.metadata.exportedAt):''}`,true);
+  return {status:'available',result};
+}
+async function loadSharedRecordFile(){
+  const checked=await checkSharedRecordFile({forceLoad:false});
+  if(checked.status==='conflict'){
+    if(!confirm('This device has unsaved local changes. Loading the shared Record will replace this device database. Continue?'))return false;
+    try{
+      await applySharedRecord(checked.result);
+      setSharedRecordUi('Updated','Shared Record loaded.',false);
+      showDbToast('Shared Record loaded');
+      return true;
+    }catch(error){
+      console.error('Forced shared Record load failed',error);
+      alert('Shared Record could not be loaded. The current local database was preserved.');
+      return false;
+    }
+  }
+  if(checked.status==='available'){
+    try{
+      await applySharedRecord(checked.result);
+      setSharedRecordUi('Updated','Shared Record loaded.',false);
+      showDbToast('Shared Record loaded');
+      return true;
+    }catch(error){
+      console.error('Shared Record load failed',error);
+      alert('Shared Record could not be loaded. The current local database was preserved.');
+      return false;
+    }
+  }
+  return checked.status==='updated'||checked.status==='current';
 }
 
 function backupAge(lastBackupAt,now=new Date()){
@@ -381,5 +504,5 @@ async function confirmRestoreDatabase(){
 }
 
 if(typeof module!=='undefined'&&module.exports){
-  module.exports={BACKUP_FORMAT,BACKUP_FORMAT_VERSION,BACKUP_BYTE_LIMIT,RECORD_FILE_NAME,RECORD_FILE_STATE_KEY,isBackupObject,parseBackupText,createBackupPayload,backupSummary,backupByteLength,serializeBackup,assertBackupSize,backupStorageMetrics,formatStorageBytes,validateBackup,backupAge,defaultRecordFileState,recordFileStatusLabel,commitRestoredDatabase};
+  module.exports={BACKUP_FORMAT,BACKUP_FORMAT_VERSION,BACKUP_BYTE_LIMIT,RECORD_FILE_NAME,RECORD_FILE_STATE_KEY,SHARED_RECORD_URL,isBackupObject,parseBackupText,createBackupPayload,backupSummary,backupByteLength,serializeBackup,assertBackupSize,backupStorageMetrics,formatStorageBytes,validateBackup,backupAge,defaultRecordFileState,recordFileStatusLabel,parseIsoMs,commitRestoredDatabase};
 }
