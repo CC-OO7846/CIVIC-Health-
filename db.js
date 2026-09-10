@@ -14,6 +14,8 @@ let persistChain=Promise.resolve();
 let booted=false;
 let lastPersistError=null;
 let lastPersistedSnapshot=null;
+let localMutationRevision=0;
+let settledMutationRevision=0;
 
 function cloneValue(value){
   if(typeof structuredClone==='function')return structuredClone(value);
@@ -327,7 +329,9 @@ function reportPersistFailure(error){
   return failure;
 }
 
-function enqueueStateWrite(snapshot,{applyToMemory=false,markRecordDirty=false}={}){
+function hasPendingDatabaseChanges(){return localMutationRevision>settledMutationRevision;}
+
+function enqueueStateWrite(snapshot,{applyToMemory=false,markRecordDirty=false,mutationRevision=0}={}){
   const candidate=cloneValue(snapshot);
   const write=persistChain.catch(()=>{}).then(()=>writeDatabaseCandidate(db,candidate,idbWriteState));
   persistChain=write.then(async saved=>{
@@ -337,35 +341,50 @@ function enqueueStateWrite(snapshot,{applyToMemory=false,markRecordDirty=false}=
     if(markRecordDirty&&typeof markRecordFileDirty==='function'){
       try{markRecordFileDirty();}catch(error){console.warn('Record file state update failed',error);}
     }
+    if(markRecordDirty)settledMutationRevision=Math.max(settledMutationRevision,mutationRevision);
     try{await updateStorageStatus();}catch(error){console.warn('Storage status update failed',error);}
     return cloneValue(saved);
-  },error=>{throw reportPersistFailure(error);});
+  },error=>{
+    if(markRecordDirty)settledMutationRevision=Math.max(settledMutationRevision,mutationRevision);
+    throw reportPersistFailure(error);
+  });
   return persistChain;
 }
 
-async function persistNow({markRecordDirty=false}={}){
+async function persistNow({markRecordDirty=false,prepareDerived=true}={}){
   clearTimeout(persistTimer);persistTimer=null;
-  return enqueueStateWrite(db,{markRecordDirty});
+  if(markRecordDirty&&!hasPendingDatabaseChanges())localMutationRevision++;
+  if(markRecordDirty&&prepareDerived&&typeof prepareDatabaseForPersistence==='function')prepareDatabaseForPersistence(db);
+  return enqueueStateWrite(db,{markRecordDirty,mutationRevision:localMutationRevision});
 }
 
 async function commitDatabaseCandidate(candidate,{markRecordDirty=true}={}){
   clearTimeout(persistTimer);persistTimer=null;
-  return enqueueStateWrite(candidate,{applyToMemory:true,markRecordDirty});
+  if(markRecordDirty)localMutationRevision++;
+  if(markRecordDirty&&typeof prepareDatabaseForPersistence==='function')prepareDatabaseForPersistence(candidate);
+  if(markRecordDirty&&typeof updateRecordFileStatus==='function')updateRecordFileStatus();
+  return enqueueStateWrite(candidate,{applyToMemory:true,markRecordDirty,mutationRevision:localMutationRevision});
 }
 
 function persist(){
   clearTimeout(persistTimer);
-  persistTimer=setTimeout(()=>{persistTimer=null;persistNow({markRecordDirty:true}).catch(()=>{});},120);
+  localMutationRevision++;
+  if(typeof prepareDatabaseForPersistence==='function')prepareDatabaseForPersistence(db);
+  if(typeof updateRecordFileStatus==='function')updateRecordFileStatus();
+  persistTimer=setTimeout(()=>{persistTimer=null;persistNow({markRecordDirty:true,prepareDerived:false}).catch(()=>{});},120);
 }
 
 async function bootDatabase(){
   let stored=null;
+  let freshDevice=false;
   try{
     stored=await idbReadState();
     if(!stored){
       const legacy=readLegacyLocalStorage();
+      freshDevice=!legacy;
       db=migrateSource(legacy);
       if(legacy)await idbWriteRecovery(legacy,'legacy-localstorage-import');
+      if(typeof prepareDatabaseForPersistence==='function')prepareDatabaseForPersistence(db);
       await idbWriteState(db);
       lastPersistedSnapshot=cloneValue(db);
       if(legacy)showDbToast('Moved existing data to IndexedDB');
@@ -375,14 +394,15 @@ async function bootDatabase(){
       const migrated=migrateSource(stored);
       if(fromVersion<SCHEMA_VERSION){
         await idbWriteRecovery(stored,`schema-${fromVersion}-to-${SCHEMA_VERSION}`);
+        if(typeof prepareDatabaseForPersistence==='function')prepareDatabaseForPersistence(migrated);
         await idbWriteState(migrated);
         lastPersistedSnapshot=cloneValue(migrated);
       }
       db=migrated;
     }
     booted=true;
+    if(typeof initializeRecordFileState==='function')initializeRecordFileState({freshDevice});
     renderAll();
-    try{await persistNow();}catch(error){console.warn('Post-boot database save failed',error);}
     await updateStorageStatus();
     if(typeof checkSharedRecordFile==='function'){
       try{await checkSharedRecordFile({autoApply:true});}
@@ -439,5 +459,5 @@ async function requestPersistentStorage(){
 }
 
 if(typeof module!=='undefined'&&module.exports){
-  module.exports={baseDb,migrateSource,applyPmCatalog,runtimeFallback,cloneValue,isPlainDataObject,validateMigrationSource,normalizeSystemWeights,legacySeedServiceSignature,isUntouchedLegacySeedRecord,syncLegacySeedFromExcel,recoveryIdsToDelete,isQuotaError,isDatabaseWriteError,databaseWriteMessage,writeDatabaseCandidate,IDB_NAME,IDB_VERSION,IDB_STORE,IDB_PRIMARY_KEY,IDB_RECOVERY_STORE,RECOVERY_MAX_COUNT,RECOVERY_MAX_AGE_DAYS};
+  module.exports={baseDb,migrateSource,applyPmCatalog,runtimeFallback,cloneValue,isPlainDataObject,validateMigrationSource,normalizeSystemWeights,legacySeedServiceSignature,isUntouchedLegacySeedRecord,syncLegacySeedFromExcel,recoveryIdsToDelete,isQuotaError,isDatabaseWriteError,databaseWriteMessage,writeDatabaseCandidate,hasPendingDatabaseChanges,IDB_NAME,IDB_VERSION,IDB_STORE,IDB_PRIMARY_KEY,IDB_RECOVERY_STORE,RECOVERY_MAX_COUNT,RECOVERY_MAX_AGE_DAYS};
 }

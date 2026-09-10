@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME='clean-garage-v10.19.2';
+const CACHE_NAME='clean-garage-v10.19.5';
 const CORE_ASSETS=[
   "./",
   "./index.html",
@@ -61,6 +61,10 @@ async function networkFirst(request){
   }
 }
 
+async function networkOnlySharedRecord(request){
+  return fetch(new Request(request,{cache:'no-store',credentials:'same-origin'}));
+}
+
 async function cacheFirst(request){
   const cached=await caches.match(request);
   if(cached)return cached;
@@ -73,7 +77,7 @@ self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
   const url=new URL(event.request.url);
   if(url.origin!==self.location.origin)return;
-  if(url.pathname.endsWith('/CleanGarage_Record.json')){event.respondWith(networkFirst(event.request));return;}
+  if(url.pathname.endsWith('/CleanGarage_Record.json')){event.respondWith(networkOnlySharedRecord(event.request));return;}
   if(event.request.mode==='navigate'){event.respondWith(networkFirst(event.request));return;}
   event.respondWith(cacheFirst(event.request));
 });

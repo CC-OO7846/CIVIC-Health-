@@ -2060,21 +2060,37 @@ button,label[for]{touch-action:manipulation}
 }
 
 
-/* V10.19.2 — Shared static Record on GitHub Pages */
-.shared-record-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding:12px 13px;border:1px solid #252a31;border-radius:12px;background:#090b0f}
+/* V10.19.3 — Shared Record reliability and diagnostics */
+.shared-record-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:10px;padding:12px 13px;border:1px solid #252a31;border-radius:12px;background:#090b0f}
 .shared-record-row>div{min-width:0}
+.shared-record-main{flex:1 1 280px}
 .shared-record-row small,.shared-record-row strong,.shared-record-row span{display:block}
 .shared-record-row small{color:#737b86;font-size:8px;letter-spacing:.08em;text-transform:uppercase}
 .shared-record-row strong{margin-top:3px;color:#eef1f4;font-size:11px}
 .shared-record-row span{margin-top:3px;color:#7f8792;font-size:9px;line-height:1.45}
+.shared-record-actions{display:flex;flex:0 1 auto;gap:7px}
 .shared-record-row button{flex:0 0 auto;min-height:40px;padding:8px 10px;border:1px solid #3b414b;border-radius:9px;background:#12161c;color:#f0f2f5;font-size:8px;font-weight:800}
+.shared-record-row button:disabled{cursor:wait;opacity:.58}
+.shared-record-debug{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));flex:1 0 100%;gap:6px;padding-top:10px;border-top:1px solid #20242a}
+.shared-record-debug>div{min-width:0;padding:7px 8px;border-radius:8px;background:#0d1014}
+.shared-record-debug strong{overflow:hidden;font-size:9px!important;text-overflow:ellipsis;white-space:nowrap}
 .record-file-privacy{margin:9px 0 0;padding:9px 10px;border-left:2px solid #775927;background:#120f08;color:#aa936b;font-size:9px;line-height:1.5}
 .record-file-privacy b{color:#d8b66f}
 @media(max-width:760px){
   .shared-record-row{align-items:flex-start!important;flex-direction:column!important}
+  .shared-record-main,.shared-record-actions,.shared-record-debug{width:100%!important}
+  .shared-record-main{flex-basis:auto!important}
   .shared-record-row small{font-size:9px!important}
   .shared-record-row strong{font-size:11px!important}
   .shared-record-row span{font-size:10px!important}
+  .shared-record-actions{display:grid!important;grid-template-columns:1fr!important}
   .shared-record-row button{width:100%!important;min-height:44px!important;font-size:10px!important}
+  .shared-record-debug{grid-template-columns:1fr 1fr!important;gap:5px!important}
+  .shared-record-debug>div{padding:7px!important}
+  .shared-record-debug strong{font-size:9px!important}
   .record-file-privacy{font-size:10px!important}
 }
+
+/* V10.19.5 — GitHub manual-upload size awareness */
+.github-upload-warning{margin:11px 0 0;padding:11px 12px;border:1px solid #865f20;border-left:4px solid #e1a83e;border-radius:9px;background:#1a1307;color:#f0c46d;font-size:10px;font-weight:750;line-height:1.5}
+@media(max-width:760px){.github-upload-warning{font-size:11px!important}}

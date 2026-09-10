@@ -352,13 +352,22 @@
         <input id="restoreDbInput" type="file" accept=".json,application/json" style="display:none" onchange="loadRecordFile(event)">
       </div>
 
-      <div class="shared-record-row">
-        <div>
+            <div class="shared-record-row">
+        <div class="shared-record-main">
           <small>GitHub Pages shared Record</small>
           <strong id="sharedRecordStatus">Checking…</strong>
           <span id="sharedRecordNote">Looking for CleanGarage_Record.json…</span>
         </div>
-        <button id="loadSharedRecordBtn" hidden onclick="loadSharedRecordFile()">LOAD SHARED RECORD</button>
+        <div class="shared-record-actions">
+          <button id="checkSharedRecordBtn" onclick="checkForLatestRecord()">CHECK FOR LATEST RECORD</button>
+          <button id="loadSharedRecordBtn" hidden onclick="loadSharedRecordFile()">LOAD SHARED RECORD</button>
+        </div>
+        <div class="shared-record-debug" aria-label="Shared Record diagnostics">
+          <div><small>Shared exportedAt</small><strong id="sharedRecordExportedAt">—</strong></div>
+          <div><small>Local reference</small><strong id="sharedRecordLocalTime">—</strong></div>
+          <div><small>Local dirty</small><strong id="sharedRecordDirty">No</strong></div>
+          <div><small>Last loaded</small><strong id="sharedRecordLastLoaded">—</strong></div>
+        </div>
       </div>
 
       <p class="record-file-hint"><b>ให้มือถืออัปเดตอัตโนมัติ:</b> หลังจากกด Save บนเครื่องที่มีข้อมูลล่าสุด ให้อัปโหลด/Replace ไฟล์ <code>CleanGarage_Record.json</code> ไว้ที่ root เดียวกับ <code>index.html</code> บน GitHub Pages. เมื่อเปิดเว็บบนมือถือ ระบบจะเช็กไฟล์นี้และโหลดอัตโนมัติถ้าไฟล์ใหม่กว่าและมือถือไม่มี Unsaved changes. คุณยังสามารถใช้ LOAD RECORD FILE แบบเลือกไฟล์เองได้เหมือนเดิม.</p>
@@ -379,6 +388,8 @@
       <div class="storage-card"><small>Record File Size</small><strong id="backupSizeEstimate">Calculating…</strong></div>
       <div class="storage-card"><small>User Images</small><strong id="imageStorageEstimate">Calculating…</strong></div>
     </div>
+
+    <div class="github-upload-warning" id="githubUploadWarning" hidden></div>
 
     <div class="storage-actions">
       <button class="primary" id="installPwaBtn" onclick="installCleanGarage()" style="display:none">Install App</button>

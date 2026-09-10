@@ -149,15 +149,28 @@ function diagnostics(){
 
 function appendHealthSnapshot(overall){if(overall.score===null)return;const today=todayIso(),last=db.healthHistory[db.healthHistory.length-1];if(!last||last.date!==today){db.healthHistory.push({id:uid('health'),vehicleId:db.car.id,date:today,km:db.car.km,score:overall.score,createdAt:nowIso()})}else if(last.score!==overall.score){last.score=overall.score;last.km=db.car.km;last.updatedAt=nowIso()}}
 
+function prepareDatabaseForPersistence(database){
+  const liveDatabase=db;
+  db=database;
+  try{
+    refreshAlerts();
+    appendHealthSnapshot(overallHealth());
+    return database;
+  }finally{
+    db=liveDatabase;
+  }
+}
+
 function renderHealth(){
   const o=overallHealth(),g=grade(o.score);vhOverallScore.textContent=o.score===null?'—':o.score;vhOverallGrade.textContent=g.label;vhOverallGrade.style.color=g.color;vhConfidence.innerHTML=`Confidence: <b>${o.confidence}%</b> · ${o.systems.filter(x=>x.score!==null).length}/${SYSTEMS.length} systems have usable evidence`;
   vhTopReasons.innerHTML=o.reasons.length?o.reasons.map(r=>`<div class="reason-mini"><span>${esc(r.system)} · ${esc(r.text)}</span><b>${r.delta}</b></div>`).join(''):'<div class="reason-mini"><span>No scored deduction available yet.</span><b>—</b></div>';
-  systemHealthGrid.innerHTML=o.systems.map(s=>{const gr=grade(s.score),img=healthSystemImage(s.system);return `<button class="system-card system-card-with-image" onclick="openHealthDetail('${esc(s.system)}')"><div class="system-health-image"><img src="${img}" alt="${esc(s.system)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_PART_IMAGE"></div><div class="system-health-copy"><div class="system-name">${esc(s.system)}</div><div class="system-score ${s.score===null?'insufficient':''}">${s.score===null?'—':s.score+'%'}</div><div class="system-status" style="color:${gr.color}">${gr.label}</div><div class="system-data">Confidence ${s.confidence}% · ${s.records.length} related record(s)</div></div></button>`}).join('');
-  appendHealthSnapshot(o);return o
+  systemHealthGrid.innerHTML=o.systems.map(s=>{const gr=grade(s.score),img=healthSystemImage(s.system),systemId=inlineJsArg(s.system);return `<button class="system-card system-card-with-image" onclick="openHealthDetail(${systemId})"><div class="system-health-image"><img src="${img}" alt="${esc(s.system)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_PART_IMAGE"></div><div class="system-health-copy"><div class="system-name">${esc(s.system)}</div><div class="system-score ${s.score===null?'insufficient':''}">${s.score===null?'—':s.score+'%'}</div><div class="system-status" style="color:${gr.color}">${gr.label}</div><div class="system-data">Confidence ${s.confidence}% · ${s.records.length} related record(s)</div></div></button>`}).join('');
+  return o
 }
 function openHealthDetail(system){const h=systemHealth(system),g=grade(h.score);healthDetailTitle.textContent=`${system} Health`;healthDetailSummary.innerHTML=`Score: <b style="color:${g.color}">${h.score===null?'Insufficient Data':h.score+'% '+g.label}</b><br>Evidence confidence: <b>${h.confidence}%</b>`;healthDetailReasons.innerHTML=h.reasons.map(r=>`<div class="detail-reason ${r.negative?'detail-negative':'detail-positive'}"><span>${esc(r.text)}</span><b>${r.delta<0?r.delta:r.delta===0?'NORMAL':'+'+r.delta}</b></div>`).join('');showModal(healthDetailModal)}
 
-function renderAlerts(){const arr=activeAlerts();alertCount.textContent=`${arr.length} active`;alertList.innerHTML=arr.length?arr.map(a=>`<div class="alert-row"><div class="alert-top"><div><div class="row-title">${esc(a.title)}</div><div class="row-sub">${esc(a.message)}</div></div><span class="alert-sev ${alertClass(a.severity)}">${a.severity}</span></div><div class="row-actions">${a.status==='active'?`<button onclick="updateAlert('${a.id}','acknowledged')">Acknowledge</button>`:''}<button onclick="updateAlert('${a.id}','dismissed')">Dismiss</button><button onclick="createTaskFromAlert('${a.id}')">Create Task</button><button onclick="createSymptomFromAlert('${a.id}')">Create Symptom</button><button onclick="openAlertSource('${a.id}')">Open Related</button></div></div>`).join(''):'<div class="empty">No active alert.</div>'}
+function alertActionsMarkup(alert){const alertId=inlineJsArg(alert.id);return `<div class="row-actions">${alert.status==='active'?`<button onclick="updateAlert(${alertId},'acknowledged')">Acknowledge</button>`:''}<button onclick="updateAlert(${alertId},'dismissed')">Dismiss</button><button onclick="createTaskFromAlert(${alertId})">Create Task</button><button onclick="createSymptomFromAlert(${alertId})">Create Symptom</button><button onclick="openAlertSource(${alertId})">Open Related</button></div>`}
+function renderAlerts(){const arr=activeAlerts();alertCount.textContent=`${arr.length} active`;alertList.innerHTML=arr.length?arr.map(a=>`<div class="alert-row"><div class="alert-top"><div><div class="row-title">${esc(a.title)}</div><div class="row-sub">${esc(a.message)}</div></div><span class="alert-sev ${alertClass(a.severity)}">${esc(a.severity)}</span></div>${alertActionsMarkup(a)}</div>`).join(''):'<div class="empty">No active alert.</div>'}
 function renderForecast(){const arr=forecast();forecastList.innerHTML=arr.length?arr.map(x=>`<div class="forecast-row"><div class="forecast-top"><div><div class="row-title">${esc(x.title)}</div><div class="row-sub">${esc(x.system)}</div></div><div style="text-align:right"><div class="forecast-km">${esc(x.label)}</div><div class="forecast-bucket">${x.type==='symptom'?'Symptom review':'Upcoming'}</div></div></div></div>`).join(''):'<div class="empty">No maintenance forecast with current data.</div>'}
 
-if(typeof module!=='undefined'&&module.exports){module.exports={HEALTH_SYSTEM_IMAGE_KEYS,healthSystemImage,canonicalHealthSystem,recordSystems,grade,systemHealth,overallHealth,scrollToExistingSection,alertSourceDestination};}
+if(typeof module!=='undefined'&&module.exports){module.exports={HEALTH_SYSTEM_IMAGE_KEYS,healthSystemImage,canonicalHealthSystem,recordSystems,grade,systemHealth,overallHealth,scrollToExistingSection,alertSourceDestination,alertActionsMarkup,prepareDatabaseForPersistence};}

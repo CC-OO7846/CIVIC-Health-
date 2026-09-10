@@ -2,7 +2,7 @@
 
 const KEY='clean-garage-v10-vehicle-health';
 const LEGACY_KEYS=['clean-garage-v8-parts-with-images','clean-garage-v7-single-hero-history','car-maintenance-life-v4-simple'];
-const APP_VERSION='10.19.2';
+const APP_VERSION='10.19.5';
 const SCHEMA_VERSION=17;
 const STORAGE_LIMITS=Object.freeze({
   uploadInputBytes:12*1024*1024,
@@ -31,6 +31,7 @@ let editingId=null, editingSymptomId=null, replacementMode=false, detailRecordId
 function nowIso(){return new Date().toISOString()}
 function todayIso(){return new Date().toISOString().slice(0,10)}
 function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function inlineJsArg(value){const serialized=JSON.stringify(value);return esc(serialized===undefined?'null':serialized)}
 function fmt(n){return Number(n||0).toLocaleString('th-TH')}
 function norm(s){return String(s||'').toLowerCase().replace(/\([^)]*\)/g,'').replace(/[^a-z0-9]+/g,' ').trim()}
 function clamp(n,a,b){return Math.max(a,Math.min(b,n))}
@@ -42,8 +43,9 @@ function nonNegativeNumber(value,fallback=0){const number=Number(value);return N
 function positiveNumber(value,fallback=0){const number=Number(value);return Number.isFinite(number)&&number>0?number:fallback}
 function hideBrokenReceipt(image){if(!image)return;image.onerror=null;image.removeAttribute('src');const wrap=image.closest?.('.receipt-preview');if(wrap)wrap.hidden=true;if(typeof showDbToast==='function')showDbToast('Receipt image could not be displayed')}
 
+function fluidControlsMarkup(recordId,state={}){const id=inlineJsArg(recordId);return `<div class="fluid-controls"><select onchange="setFluidCondition(${id},this.value)"><option ${state.condition==='Normal'?'selected':''}>Normal</option><option ${state.condition==='Monitor'?'selected':''}>Monitor</option><option ${state.condition==='Abnormal'?'selected':''}>Abnormal</option></select><label class="leak-toggle"><input type="checkbox" ${state.leak?'checked':''} onchange="setFluidLeak(${id},this.checked)"> Leak</label></div>`}
 
-function renderFluids(){fluidGrid.innerHTML=fluidRows().map(({catalog,record})=>{if(!record)return `<div class="fluid-card"><div class="fluid-top"><div><div class="fluid-name">${catalog.name}</div><div class="fluid-system">${catalog.system}</div></div></div><div class="life-big">—<small> Insufficient Data</small></div><button class="btn" style="margin-top:12px" onclick="prefillFluid('${catalog.name}','${catalog.system}')">Add service data</button></div>`;const m=lifeMetrics(record),st=db.fluidState[record.id]||{condition:'Normal',leak:false};return `<div class="fluid-card"><div class="fluid-top"><div><div class="fluid-name">${esc(record.part)}</div><div class="fluid-system">${esc(catalog.system)}</div></div><span class="verify">${statusText(m.remaining)}</span></div><div class="life-big" style="color:${lifeColor(m.remaining)}">${m.remaining===null?'—':m.remaining.toFixed(0)+'%'}<small> remaining</small></div><div class="dual-life"><div><small>Mileage life</small><b>${m.kmPct===null?'—':m.kmPct.toFixed(0)+'%'}</b></div><div><small>Time life</small><b>${m.timePct===null?'—':m.timePct.toFixed(0)+'%'}</b></div></div><div class="fluid-controls"><select onchange="setFluidCondition(${record.id},this.value)"><option ${st.condition==='Normal'?'selected':''}>Normal</option><option ${st.condition==='Monitor'?'selected':''}>Monitor</option><option ${st.condition==='Abnormal'?'selected':''}>Abnormal</option></select><label class="leak-toggle"><input type="checkbox" ${st.leak?'checked':''} onchange="setFluidLeak(${record.id},this.checked)"> Leak</label></div></div>`}).join('')}
+function renderFluids(){fluidGrid.innerHTML=fluidRows().map(({catalog,record})=>{if(!record){const name=inlineJsArg(catalog.name),system=inlineJsArg(catalog.system);return `<div class="fluid-card"><div class="fluid-top"><div><div class="fluid-name">${esc(catalog.name)}</div><div class="fluid-system">${esc(catalog.system)}</div></div></div><div class="life-big">—<small> Insufficient Data</small></div><button class="btn" style="margin-top:12px" onclick="prefillFluid(${name},${system})">Add service data</button></div>`;}const m=lifeMetrics(record),st=db.fluidState[record.id]||{condition:'Normal',leak:false};return `<div class="fluid-card"><div class="fluid-top"><div><div class="fluid-name">${esc(record.part)}</div><div class="fluid-system">${esc(catalog.system)}</div></div><span class="verify">${statusText(m.remaining)}</span></div><div class="life-big" style="color:${lifeColor(m.remaining)}">${m.remaining===null?'—':m.remaining.toFixed(0)+'%'}<small> remaining</small></div><div class="dual-life"><div><small>Mileage life</small><b>${m.kmPct===null?'—':m.kmPct.toFixed(0)+'%'}</b></div><div><small>Time life</small><b>${m.timePct===null?'—':m.timePct.toFixed(0)+'%'}</b></div></div>${fluidControlsMarkup(record.id,st)}</div>`}).join('')}
 function setFluidCondition(id,val){db.fluidState[id]={...(db.fluidState[id]||{}),condition:val};persist();renderAll()}
 function setFluidLeak(id,val){db.fluidState[id]={...(db.fluidState[id]||{}),leak:val};persist();renderAll()}
 function prefillFluid(name,system){openHistoryModal();fPart.value=name;fSystem.value=system;fEventType.value='fluid_change'}
@@ -56,7 +58,7 @@ function renderPartsLife(){
     return `<div class="life-card">
       <div class="life-card-top">
         <div class="life-card-identity">
-          <div class="life-card-image"><img src="${source}" alt="${esc(r.part)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_PART_IMAGE"></div>
+          <div class="life-card-image"><img src="${esc(source)}" alt="${esc(r.part)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_PART_IMAGE"></div>
           <div>
             <div class="life-card-name">${esc(r.part)}</div>
             <div class="life-card-system">${esc(r.system||'')}</div>
@@ -73,9 +75,9 @@ function renderPartsLife(){
 function populateSystemSelect(){sSystem.innerHTML=SYSTEMS.filter(x=>x!=='Fluids').map(x=>`<option>${x}</option>`).join('')}
 function openSymptomModal(prefill={}){editingSymptomId=null;populateSystemSelect();symptomModalTitle.textContent='Add Symptom';sDate.value=prefill.date||todayIso();sKm.value=prefill.km??db.car.km;sSystem.value=prefill.system||'Engine';sName.value=prefill.name||'';sSeverity.value=prefill.severity||3;sStatus.value=prefill.status||'Active';sEngineState.value='';sRpm.value='';sCoolantTemp.value='';sAtfTemp.value='';sAc.value='';sGear.value='';sSpeed.value='';sAmbient.value='';sNote.value=prefill.note||'';showModal(symptomModal)}
 function closeSymptomModal(){symptomModal.classList.remove('show')}
-function symptomFromForm(id){return {id:id||uid('sym'),vehicleId:db.car.id,date:sDate.value,km:Number(sKm.value||db.car.km),system:sSystem.value,name:sName.value.trim(),severity:Number(sSeverity.value),status:sStatus.value,conditions:{engineState:sEngineState.value,rpm:numOrNull(sRpm.value),coolantTemp:numOrNull(sCoolantTemp.value),atfTemp:numOrNull(sAtfTemp.value),ac:sAc.value,gear:sGear.value,speed:numOrNull(sSpeed.value),ambient:numOrNull(sAmbient.value)},note:sNote.value.trim(),updatedAt:nowIso()}}
+function symptomFromForm(id){return {id:id!==null&&id!==undefined?id:uid('sym'),vehicleId:db.car.id,date:sDate.value,km:Number(sKm.value||db.car.km),system:sSystem.value,name:sName.value.trim(),severity:Number(sSeverity.value),status:sStatus.value,conditions:{engineState:sEngineState.value,rpm:numOrNull(sRpm.value),coolantTemp:numOrNull(sCoolantTemp.value),atfTemp:numOrNull(sAtfTemp.value),ac:sAc.value,gear:sGear.value,speed:numOrNull(sSpeed.value),ambient:numOrNull(sAmbient.value)},note:sNote.value.trim(),updatedAt:nowIso()}}
 function numOrNull(v){return v===''?null:Number(v)}
-function saveSymptom(){if(!sName.value.trim()){alert('กรุณาใส่อาการ');return}const obj=symptomFromForm(editingSymptomId);if(editingSymptomId)db.symptoms=db.symptoms.map(x=>x.id===editingSymptomId?{...x,...obj}:x);else{obj.createdAt=nowIso();db.symptoms.unshift(obj)}persist();closeSymptomModal();renderAll()}
+function saveSymptom(){if(!sName.value.trim()){alert('กรุณาใส่อาการ');return}const obj=symptomFromForm(editingSymptomId),hasEditingId=editingSymptomId!==null&&editingSymptomId!==undefined;if(hasEditingId)db.symptoms=db.symptoms.map(x=>x.id===editingSymptomId?{...x,...obj}:x);else{obj.createdAt=nowIso();db.symptoms.unshift(obj)}persist();closeSymptomModal();renderAll()}
 function editSymptom(id){const s=db.symptoms.find(x=>x.id===id);if(!s)return;openSymptomModal(s);editingSymptomId=id;sDate.value=s.date;sKm.value=s.km;sSystem.value=s.system;sName.value=s.name;sSeverity.value=s.severity;sStatus.value=s.status;sEngineState.value=s.conditions?.engineState||'';sRpm.value=s.conditions?.rpm??'';sCoolantTemp.value=s.conditions?.coolantTemp??'';sAtfTemp.value=s.conditions?.atfTemp??'';sAc.value=s.conditions?.ac||'';sGear.value=s.conditions?.gear||'';sSpeed.value=s.conditions?.speed??'';sAmbient.value=s.conditions?.ambient??'';sNote.value=s.note||'';symptomModalTitle.textContent='Edit Symptom'}
 function resolveSymptom(id){const s=db.symptoms.find(x=>x.id===id);if(s){s.status='Resolved';s.updatedAt=nowIso();persist();renderAll()}}
 
@@ -84,9 +86,9 @@ function renderHistory(){
   const records=allSavedHistory().filter(record=>(!query||(record.part+' '+record.system+' '+(record.note||'')).toLowerCase().includes(query))&&(!system||record.system===system));
   if(!records.length){historyGrid.innerHTML='<div class="empty">No repaired part found.</div>';return;}
   historyGrid.innerHTML=records.map(record=>{
-    const metrics=lifeMetrics(record),life=metrics.remaining,status=statusText(life),id=JSON.stringify(record.id);
+    const metrics=lifeMetrics(record),life=metrics.remaining,status=statusText(life),id=inlineJsArg(record.id);
     const source=resolvePartImage(record);
-    const image=source?`<img src="${source}" alt="${esc(record.part)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_PART_IMAGE">`:'<div class="photo-placeholder"><strong>+</strong><small>Add photo</small></div>';
+    const image=source?`<img src="${esc(source)}" alt="${esc(record.part)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_PART_IMAGE">`:'<div class="photo-placeholder"><strong>+</strong><small>Add photo</small></div>';
     const reference=record.pmTracked?Number(record.referencePrice??record.price??0):0;
     const actual=recordActualCost(record);
     const displayCost=actual>0?actual:reference;
@@ -171,7 +173,7 @@ function showModal(modal){
   }
 }
 
-function renderAll(){refreshAlerts();const o=renderHealth();renderLegacyKpi(o);renderAlerts();renderForecast();renderFluids();renderPartsLife();renderNextBudget();renderHistory();renderMobileDashboard();heroKm.textContent=fmt(db.car.km)}
+function renderAll(){const o=renderHealth();renderLegacyKpi(o);renderAlerts();renderForecast();renderFluids();renderPartsLife();renderNextBudget();renderHistory();renderMobileDashboard();heroKm.textContent=fmt(db.car.km)}
 function render(){renderAll()}
 
 function resetHistoryExtraFields(){
@@ -365,7 +367,8 @@ async function optimizeUploadedImage(file,options={}){
 
 async function saveHistory(){
   const part=fPart.value.trim();if(!part){alert('กรุณาใส่ชื่ออะไหล่');return}
-  const old=editingId?db.history.find(x=>x.id===editingId):null;
+  const hasEditingId=editingId!==null&&editingId!==undefined;
+  const old=hasEditingId?db.history.find(x=>x.id===editingId):null;
   let image=old?.image||'',customImage=!!old?.customImage,receiptImage=old?.receiptImage||'';
   const saveButton=historyModal.querySelector('.modal-actions .primary');
   if(saveButton){saveButton.disabled=true;saveButton.textContent='Saving…';}
@@ -382,14 +385,14 @@ async function saveHistory(){
     }
     const actualCost=nonNegativeNumber(fPrice.value,0);
     const customReferencePrice=nonNegativeNumber(document.getElementById('fReferencePrice')?.value,0);
-    const rec={...(old||{}),id:editingId||Date.now(),part,system:fSystem.value.trim(),date:fDate.value,km:nonNegativeNumber(fKm.value,0),actualCost,intervalKm:nonNegativeNumber(fIntervalKm.value,0),intervalMonths:nonNegativeNumber(fIntervalMonths.value,0),note:fNote.value.trim(),image,customImage,imageKey:old?.imageKey||imageKeyForPartName(part)||'',needsVerify:false,eventType:fEventType.value,workshop:fWorkshop.value.trim(),partBrand:fPartBrand.value.trim(),partNumber:fPartNumber.value.trim(),warrantyMonths:nonNegativeNumber(fWarrantyMonths.value,0),receiptImage};
+    const rec={...(old||{}),id:hasEditingId?editingId:Date.now(),part,system:fSystem.value.trim(),date:fDate.value,km:nonNegativeNumber(fKm.value,0),actualCost,intervalKm:nonNegativeNumber(fIntervalKm.value,0),intervalMonths:nonNegativeNumber(fIntervalMonths.value,0),note:fNote.value.trim(),image,customImage,imageKey:old?.imageKey||imageKeyForPartName(part)||'',needsVerify:false,eventType:fEventType.value,workshop:fWorkshop.value.trim(),partBrand:fPartBrand.value.trim(),partNumber:fPartNumber.value.trim(),warrantyMonths:nonNegativeNumber(fWarrantyMonths.value,0),receiptImage};
     rec.customReferencePrice=Number.isFinite(customReferencePrice)&&customReferencePrice>=0?customReferencePrice:0;
     rec.referencePrice=rec.customReferencePrice;
     rec.price=rec.pmTracked?(actualCost>0?actualCost:rec.referencePrice):actualCost;
     if(rec.pmTracked&&old){if(rec.intervalKm>0&&rec.km>0)rec.pmPlanKm=rec.km+rec.intervalKm;if(rec.intervalMonths>0&&rec.date)rec.pmPlanDate=addMonthsIso(rec.date,rec.intervalMonths);rec.pmDerivedPlanDate='';rec.pmPlanDateRaw=null}
-    const createEvent=!editingId||replacementMode;
+    const createEvent=!hasEditingId||replacementMode;
     const candidate=cloneValue(db);
-    if(editingId)candidate.history=candidate.history.map(x=>x.id===editingId?rec:x);else candidate.history.unshift(rec);
+    if(hasEditingId)candidate.history=candidate.history.map(x=>x.id===editingId?rec:x);else candidate.history.unshift(rec);
     if(createEvent)candidate.serviceEvents.unshift({id:uid('evt'),vehicleId:candidate.car.id,type:rec.eventType,date:rec.date,km:rec.km,system:rec.system,title:rec.part,cost:serviceEventCost(rec),actualCost:serviceEventCost(rec),sourceId:rec.id,userEntered:true,workshop:rec.workshop||'',partBrand:rec.partBrand||'',partNumber:rec.partNumber||'',createdAt:nowIso()});
     await commitDatabaseCandidate(candidate);
     replacementMode=false;closeHistoryModal();renderAll();
@@ -422,7 +425,7 @@ function removeHistory(id){if(!confirm('ลบประวัติรายก�
 function openPartDetails(id){
   const r=db.history.find(x=>x.id===id);if(!r)return;detailRecordId=id;
   partDetailTitle.textContent=r.part||'Part Detail';partDetailSystem.textContent=r.system||'Service record';
-  const src=resolvePartImage(r);partDetailImage.innerHTML=src?`<img src="${src}" alt="${esc(r.part)}" onerror="this.onerror=null;this.src=FALLBACK_PART_IMAGE">`:'<div class="photo-placeholder"><strong>+</strong><small>No image</small></div>';
+  const src=resolvePartImage(r);partDetailImage.innerHTML=src?`<img src="${esc(src)}" alt="${esc(r.part)}" onerror="this.onerror=null;this.src=FALLBACK_PART_IMAGE">`:'<div class="photo-placeholder"><strong>+</strong><small>No image</small></div>';
   partDetailDate.textContent=dateFmt(r.date);partDetailKm.textContent=r.km?fmt(r.km)+' km':'—';
   const actual=recordActualCost(r),reference=Number(r.referencePrice||0);partDetailActual.textContent=actual>0?'฿'+fmt(actual):'—';partDetailReference.textContent=reference>0?'฿'+fmt(reference):'—';
   partDetailWorkshop.textContent=r.workshop||'—';partDetailBrand.textContent=r.partBrand||'—';partDetailNumber.textContent=r.partNumber||'—';
