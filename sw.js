@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME='clean-garage-v10.19.5';
+const CACHE_NAME='clean-garage-v10.19.6';
 const CORE_ASSETS=[
   "./",
   "./index.html",

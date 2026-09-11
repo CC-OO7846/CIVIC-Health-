@@ -1,4 +1,4 @@
-# Clean Garage V10.19.5 — Reliability Audit Fixes
+# Clean Garage V10.19.6 — Record State Final Fix
 
 ## แนวทางใช้งาน
 ข้อมูลหลักยังอยู่ใน IndexedDB ของอุปกรณ์ที่กำลังใช้งาน
@@ -25,7 +25,7 @@
 - ถ้า Record file ใหญ่กว่า 20 MiB แอปจะแจ้งเตือน เพราะ GitHub browser upload จำกัด 25 MiB ต่อไฟล์ แต่ยังบันทึก local backup ได้
 
 
-## Shared Record ผ่าน GitHub Pages (V10.19.5)
+## Shared Record ผ่าน GitHub Pages (V10.19.6)
 1. บนอุปกรณ์ที่มีข้อมูลล่าสุด กด `SAVE RECORD FILE`
 2. จะได้ `CleanGarage_Record.json`
 3. อัปโหลด/Replace ไฟล์นี้ใน GitHub repo ตรง root เดียวกับ `index.html`
@@ -39,6 +39,12 @@
 อุปกรณ์เดิมที่มี IndexedDB แต่ยังไม่มี timestamp ของ Record file จะแสดง `First sync required` และจะไม่ถูกเขียนทับอัตโนมัติ ให้เลือก Save ข้อมูล local ก่อน หรือกด Load Shared Record หลังตรวจข้อมูลแล้ว เมื่อ sync สำเร็จครั้งแรก ระบบจึงจะกลับมา auto-load ไฟล์ใหม่กว่าในครั้งถัดไป
 
 ถ้า local มี Unsaved changes และ Shared Record เท่ากับหรือเก่ากว่า ระบบจะแสดง `Local changes not published` และจะไม่เสนอให้เขียนทับ local
+
+ถ้า Save Record แล้วและไม่มี Unsaved changes แต่ Shared Record เก่ากว่า ระบบจะแสดง `Shared Record is older` ให้อัปโหลด/Replace `CleanGarage_Record.json` ล่าสุดใน GitHub แล้วตรวจอีกครั้งหลัง deploy; `Up to date` ใน Shared Record หมายถึง timestamp เท่ากันเท่านั้น
+
+การ Save Record ทันทีหลังแก้ข้อมูลจะรวมข้อมูลที่รอบันทึกลง IndexedDB และปิด pending revision เมื่อเขียนสำเร็จ หากมีการแก้เพิ่มเติมระหว่าง Save/share ข้อมูลที่ไม่ได้อยู่ในไฟล์ยังแสดงเป็น Unsaved changes
+
+LOAD RECORD FILE ตรวจ ISO `exportedAt` ของไฟล์แบบ wrapped เช่นเดียวกับ Shared Record และปฏิเสธวันที่ไม่มีจริงหรือเวลาอนาคตเกิน 5 นาที ยังโหลด legacy raw backup ที่ไม่มี timestamp ได้ โดยแสดง `First sync required` จนกว่าจะ Save Record ใหม่หรือยืนยันโหลด Shared Record ที่มี timestamp ถูกต้อง
 
 แอปอ่านไฟล์จาก path เดียวกับหน้าเว็บเสมอ เช่น
 `https://USERNAME.github.io/REPOSITORY/CleanGarage_Record.json` และจะไม่ใช้ domain root

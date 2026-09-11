@@ -2091,6 +2091,6 @@ button,label[for]{touch-action:manipulation}
   .record-file-privacy{font-size:10px!important}
 }
 
-/* V10.19.5 — GitHub manual-upload size awareness */
+/* V10.19.6 — GitHub manual-upload size awareness */
 .github-upload-warning{margin:11px 0 0;padding:11px 12px;border:1px solid #865f20;border-left:4px solid #e1a83e;border-radius:9px;background:#1a1307;color:#f0c46d;font-size:10px;font-weight:750;line-height:1.5}
 @media(max-width:760px){.github-upload-warning{font-size:11px!important}}

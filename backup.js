@@ -25,7 +25,7 @@ function parseBackupText(text){
 
 function createBackupPayload(database,exportedAt){
   const stamp=String(exportedAt||database?.settings?.lastBackupAt||'');
-  const appVersion=typeof APP_VERSION==='string'?APP_VERSION:'10.19.5';
+  const appVersion=typeof APP_VERSION==='string'?APP_VERSION:'10.19.6';
   return {
     format:BACKUP_FORMAT,
     version:BACKUP_FORMAT_VERSION,
@@ -126,7 +126,7 @@ function formatStorageBytes(bytes){
   return (value/1024/1024).toFixed(value>=100*1024*1024?0:1)+' MB';
 }
 
-function validateBackup(raw){
+function validateBackup(raw,{nowMs=Date.now()}={}){
   if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new Error('Backup root must be an object');
   let database=raw;
   let metadata={format:'legacy-raw',version:0,exportedAt:'',schemaVersion:Number(raw.schemaVersion||0)};
@@ -158,6 +158,10 @@ function validateBackup(raw){
   const schemaVersion=Number(database.schemaVersion||metadata.schemaVersion||0);
   if(!Number.isFinite(schemaVersion)||schemaVersion<0)throw new Error('Schema version is invalid');
   if(schemaVersion>SCHEMA_VERSION)throw new Error(`Backup schema ${schemaVersion} is newer than this app supports`);
+  if(metadata.format!=='legacy-raw'){
+    const timestamp=recordTimestampState(metadata.exportedAt,nowMs);
+    if(!timestamp.valid)throw sharedRecordError(timestamp.reason==='future'?'future-timestamp':'timestamp',timestamp.reason==='future'?'Record exportedAt is too far in the future.':'Record exportedAt must be a valid ISO timestamp.');
+  }
   const migrated=migrateSource(database);
   return {metadata,database:cloneValue(database),migrated,summary:backupSummary(migrated)};
 }
@@ -355,7 +359,8 @@ function decideSharedRecord({remoteExportedAt='',localReferenceAt='',dirty=false
   if(!remote.valid)return {status:remote.reason==='future'?'future-timestamp':'invalid-timestamp',remoteTime,localTime};
   if(firstSyncRequired)return {status:'first-sync-required',remoteTime,localTime};
   if(dirty&&localTime&&remoteTime<=localTime)return {status:'local-unpublished',remoteTime,localTime};
-  if(localTime&&remoteTime<=localTime)return {status:'current',remoteTime,localTime};
+  if(localTime&&remoteTime<localTime)return {status:'shared-older',remoteTime,localTime};
+  if(localTime&&remoteTime===localTime)return {status:'current',remoteTime,localTime};
   if(dirty)return {status:'conflict',remoteTime,localTime};
   if(freshDevice)return {status:'newer',remoteTime,localTime};
   if(!localTime)return {status:'unknown-local-time',remoteTime,localTime};
@@ -422,7 +427,7 @@ async function parseSharedRecordResponse(response,{nowMs=Date.now()}={}){
   let raw;
   try{raw=parseBackupText(text);}
   catch(error){throw sharedRecordError('malformed',error.message);}
-  const result=validateBackup(raw);
+  const result=validateBackup(raw,{nowMs});
   const timestamp=recordTimestampState(result.metadata.exportedAt,nowMs);
   if(!timestamp.valid)throw sharedRecordError(timestamp.reason==='future'?'future-timestamp':'timestamp',timestamp.reason==='future'?'Shared Record exportedAt is too far in the future.':'Shared Record exportedAt must be a valid ISO timestamp.');
   return result;
@@ -490,8 +495,12 @@ async function checkSharedRecordFile({autoApply=false}={}){
     return {status:'local-unpublished',result,decision};
   }
   if(decision.status==='current'){
-    setSharedRecordUi('Up to date','Shared Record is not newer than this device.',false,uiOptions);
+    setSharedRecordUi('Up to date','Shared Record matches the saved Record on this device.',false,uiOptions);
     return {status:'current',result,decision};
+  }
+  if(decision.status==='shared-older'){
+    setSharedRecordUi('Shared Record is older','Upload/replace the latest CleanGarage_Record.json in GitHub, then check again after GitHub Pages deploys. Local data was preserved.',false,uiOptions);
+    return {status:'shared-older',result,decision};
   }
   if(decision.status==='conflict'){
     setSharedRecordUi('Newer shared record available','This device has unsaved local changes. It will not be overwritten automatically.',true,uiOptions);
@@ -591,6 +600,7 @@ function updateBackupStatus(){
 
 async function exportDatabaseBackup(){
   const exportedAt=nowIso();
+  const exportedRevision=databaseMutationRevision();
   const candidate=cloneValue(db);
   candidate.settings={
     ...(candidate.settings||{}),
@@ -630,7 +640,12 @@ async function exportDatabaseBackup(){
   let timestampSaved=true;
   try{await persistNow({markRecordDirty:false});}
   catch(error){timestampSaved=false;console.warn('Record saved timestamp was not persisted',error);}
-  markRecordFileClean({savedAt:exportedAt});
+  if(timestampSaved){
+    markRecordFileClean({savedAt:exportedAt});
+    if(databaseMutationRevision()!==exportedRevision)markRecordFileDirty();
+  }else{
+    markRecordFileDirty();
+  }
   updateBackupStatus();
   updateGithubUploadWarning(blob.size);
   if(timestampSaved)showDbToast(githubAwareness.warning?'Record saved locally · over 20 MiB for GitHub browser upload':delivered==='shared'?'Record ready to save/share':'Record file saved');
@@ -701,13 +716,20 @@ async function confirmRestoreDatabase(){
     const loadedFileName=pendingRestore.fileName||RECORD_FILE_NAME;
     const loadedAt=nowIso();
     candidate.settings={...(candidate.settings||{}),lastRecordLoadedAt:loadedAt};
+    if(!loadedMeta.exportedAt){
+      // A raw backup has no validated export baseline. Do not retain reference
+      // times from the previous database or infer one from its load time.
+      delete candidate.settings.lastBackupAt;
+      delete candidate.settings.lastRecordSavedAt;
+    }
     db=await commitRestoredDatabase(db,candidate,{
       writeRecovery:idbWriteRecovery,
       writeState:snapshot=>commitDatabaseCandidate(snapshot,{markRecordDirty:false})
     });
     pendingRestore=null;
     modal.classList.remove('show');
-    markRecordFileClean({savedAt:loadedMeta.exportedAt||db.settings?.lastRecordSavedAt||'',loadedAt});
+    if(loadedMeta.exportedAt)markRecordFileClean({savedAt:loadedMeta.exportedAt,loadedAt});
+    else saveRecordFileState({dirty:false,fresh:false,firstSyncRequired:true,lastSavedAt:'',lastLoadedAt:loadedAt});
     renderAll();
     await updateStorageStatus();
     showDbToast(`Loaded ${loadedFileName}`);
@@ -716,7 +738,7 @@ async function confirmRestoreDatabase(){
     alert('Load failed. The current database was not replaced.');
   }finally{
     button.disabled=false;
-    button.textContent='Restore and replace';
+    button.textContent='Load and replace';
   }
 }
 

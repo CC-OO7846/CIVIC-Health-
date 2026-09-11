@@ -330,6 +330,7 @@ function reportPersistFailure(error){
 }
 
 function hasPendingDatabaseChanges(){return localMutationRevision>settledMutationRevision;}
+function databaseMutationRevision(){return localMutationRevision;}
 
 function enqueueStateWrite(snapshot,{applyToMemory=false,markRecordDirty=false,mutationRevision=0}={}){
   const candidate=cloneValue(snapshot);
@@ -341,7 +342,9 @@ function enqueueStateWrite(snapshot,{applyToMemory=false,markRecordDirty=false,m
     if(markRecordDirty&&typeof markRecordFileDirty==='function'){
       try{markRecordFileDirty();}catch(error){console.warn('Record file state update failed',error);}
     }
-    if(markRecordDirty)settledMutationRevision=Math.max(settledMutationRevision,mutationRevision);
+    // This snapshot either includes or explicitly replaces revisions captured
+    // when it was queued. Later mutations must remain pending.
+    settledMutationRevision=Math.max(settledMutationRevision,mutationRevision);
     try{await updateStorageStatus();}catch(error){console.warn('Storage status update failed',error);}
     return cloneValue(saved);
   },error=>{
