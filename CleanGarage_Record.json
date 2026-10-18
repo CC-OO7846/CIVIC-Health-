@@ -1,16 +1,16 @@
 {
   "format": "clean-garage-backup",
   "version": 2,
-  "exportedAt": "2026-09-08T15:44:06.651Z",
+  "exportedAt": "2026-10-18T08:07:54.228Z",
   "app": "Clean Garage",
-  "appVersion": "10.19.2",
+  "appVersion": "10.19.6",
   "schemaVersion": 17,
   "summary": {
     "vehicle": "Honda Civic ES 2.0",
-    "mileage": 333500,
+    "mileage": 334000,
     "repairRecordCount": 33,
     "pmCount": 32,
-    "healthHistoryCount": 3,
+    "healthHistoryCount": 4,
     "customImageCount": 0,
     "receiptImageCount": 0
   },
@@ -22,7 +22,7 @@
       "year": 2001,
       "engine": "K20A",
       "transmission": "AT",
-      "km": 333500,
+      "km": 334000,
       "monthlyKm": 1200
     },
     "history": [
@@ -30,9 +30,9 @@
         "id": 1,
         "part": "ATF / Gear Oil",
         "system": "Transmission",
-        "date": "2026-06-08",
-        "km": 333500,
-        "price": 0,
+        "date": "2026-10-17",
+        "km": 334000,
+        "price": 1050,
         "note": "Drain & fill record. เคยมีประเด็น D กระพริบ/เกียร์กระตุกให้เฝ้าระวัง",
         "intervalKm": 40000,
         "intervalMonths": 12,
@@ -57,10 +57,14 @@
         "priceSource": "Reference estimate — verify Lazada/Shopee",
         "pmPlanDateRaw": null,
         "pmHistoryDateRaw": "",
-        "pmPlanKm": 373500,
-        "pmPlanDate": "2027-06-08",
+        "pmPlanKm": 374000,
+        "pmPlanDate": "2027-10-17",
         "pmDerivedPlanDate": "",
-        "pmExcelSourceSynced": true
+        "pmExcelSourceSynced": true,
+        "actualCost": 0,
+        "customImage": false,
+        "needsVerify": false,
+        "customReferencePrice": 1050
       },
       {
         "id": 2,
@@ -318,14 +322,14 @@
         "id": 9,
         "part": "Engine Oil",
         "system": "Engine",
-        "date": "2026-06-08",
-        "km": 333500,
-        "price": 0,
+        "date": "2026-10-18",
+        "km": 334000,
+        "price": 1100,
         "note": "มีประวัติเปลี่ยนแล้ว แต่ record เดิมมีข้อมูลเลขไมล์/วันที่ขัดกัน — รอคุณแก้ค่าให้ตรง",
         "intervalKm": 5000,
         "intervalMonths": 6,
         "image": "",
-        "needsVerify": true,
+        "needsVerify": false,
         "workshop": "",
         "partBrand": "",
         "partNumber": "",
@@ -346,10 +350,13 @@
         "priceSource": "Reference estimate — verify Lazada/Shopee",
         "pmPlanDateRaw": null,
         "pmHistoryDateRaw": "",
-        "pmPlanKm": 338500,
-        "pmPlanDate": "2026-12-08",
+        "pmPlanKm": 339000,
+        "pmPlanDate": "2027-04-18",
         "pmDerivedPlanDate": "",
-        "pmExcelSourceSynced": true
+        "pmExcelSourceSynced": true,
+        "actualCost": 0,
+        "customImage": false,
+        "customReferencePrice": 1100
       },
       {
         "id": 1788614562963,
@@ -435,9 +442,9 @@
         "eventType": "part_replacement",
         "part": "Engine Coolant",
         "system": "Cooling",
-        "date": "2025-12-17",
-        "km": 330000,
-        "price": 0,
+        "date": "2026-10-18",
+        "km": 334000,
+        "price": 400,
         "note": "Valvoline Super Coolant",
         "intervalKm": 40000,
         "intervalMonths": 24,
@@ -460,10 +467,12 @@
         "priceSource": "Reference estimate — verify Lazada/Shopee",
         "pmPlanDateRaw": null,
         "pmHistoryDateRaw": "",
-        "pmPlanKm": 370000,
-        "pmPlanDate": "2027-12-17",
+        "pmPlanKm": 374000,
+        "pmPlanDate": "2028-10-18",
         "pmDerivedPlanDate": "",
-        "pmExcelSourceSynced": true
+        "pmExcelSourceSynced": true,
+        "actualCost": 0,
+        "customReferencePrice": 400
       },
       {
         "id": 1788614562966,
@@ -663,8 +672,8 @@
         "eventType": "part_replacement",
         "part": "Thermostat",
         "system": "Cooling",
-        "date": "",
-        "km": 0,
+        "date": "2025-12-16",
+        "km": 330000,
         "price": 0,
         "note": "Engine thermostat",
         "intervalKm": 80000,
@@ -1136,7 +1145,7 @@
         "km": 327000,
         "price": 0,
         "intervalKm": 100000,
-        "intervalMonths": 0,
+        "intervalMonths": 6,
         "image": "",
         "customImage": false,
         "imageKey": "suspension_parts",
@@ -1144,7 +1153,7 @@
         "needsVerify": false,
         "eventType": "part_replacement",
         "pmPlanKm": 427000,
-        "pmPlanDate": "",
+        "pmPlanDate": "2025-09-15",
         "pmDerivedPlanDate": "",
         "pmPlanDateRaw": null,
         "pmHistoryDateRaw": "",
@@ -1163,7 +1172,9 @@
         "partBrand": "",
         "partNumber": "",
         "warrantyMonths": 0,
-        "receiptImage": ""
+        "receiptImage": "",
+        "actualCost": 0,
+        "customReferencePrice": 0
       },
       {
         "id": 1788614566991,
@@ -1244,6 +1255,30 @@
     "inspections": [],
     "alerts": [
       {
+        "id": "alert_1792310760493_vzjst5",
+        "vehicleId": "vehicle-1",
+        "status": "active",
+        "createdAt": "2026-10-18T08:06:00.493Z",
+        "signature": "life:1788614566988",
+        "severity": "CRITICAL",
+        "title": "Suspension Parts Set overdue",
+        "message": "Recorded lifecycle has reached or passed its service limit.",
+        "sourceType": "history",
+        "sourceId": 1788614566988
+      },
+      {
+        "id": "alert_1792310155188_g7kjf1",
+        "vehicleId": "vehicle-1",
+        "status": "active",
+        "createdAt": "2026-10-18T07:55:55.188Z",
+        "signature": "life:1788614562971",
+        "severity": "WARNING",
+        "title": "Cabin Air Filter replacement planning",
+        "message": "Remaining life 17%.",
+        "sourceType": "history",
+        "sourceId": 1788614562971
+      },
+      {
         "id": "alert_1788796135363_dn8lgp",
         "vehicleId": "vehicle-1",
         "status": "active",
@@ -1258,6 +1293,57 @@
     ],
     "tasks": [],
     "serviceEvents": [
+      {
+        "id": "evt_1792310230980_kggugq",
+        "vehicleId": "vehicle-1",
+        "type": "fluid_change",
+        "date": "2026-10-18",
+        "km": 334000,
+        "system": "Engine",
+        "title": "Engine Oil",
+        "cost": 0,
+        "actualCost": 0,
+        "sourceId": 9,
+        "userEntered": true,
+        "workshop": "",
+        "partBrand": "",
+        "partNumber": "",
+        "createdAt": "2026-10-18T07:57:10.980Z"
+      },
+      {
+        "id": "evt_1792310225837_tlzdio",
+        "vehicleId": "vehicle-1",
+        "type": "part_replacement",
+        "date": "2026-10-18",
+        "km": 334000,
+        "system": "Cooling",
+        "title": "Engine Coolant",
+        "cost": 0,
+        "actualCost": 0,
+        "sourceId": 1788614562965,
+        "userEntered": true,
+        "workshop": "",
+        "partBrand": "",
+        "partNumber": "",
+        "createdAt": "2026-10-18T07:57:05.837Z"
+      },
+      {
+        "id": "evt_1792310213853_3dnl2i",
+        "vehicleId": "vehicle-1",
+        "type": "fluid_change",
+        "date": "2026-10-17",
+        "km": 334000,
+        "system": "Transmission",
+        "title": "ATF / Gear Oil",
+        "cost": 0,
+        "actualCost": 0,
+        "sourceId": 1,
+        "userEntered": true,
+        "workshop": "",
+        "partBrand": "",
+        "partNumber": "",
+        "createdAt": "2026-10-18T07:56:53.853Z"
+      },
       {
         "id": "evt_1788614561965_k112xw",
         "vehicleId": "vehicle-1",
@@ -1489,6 +1575,15 @@
         "km": 333500,
         "score": 90,
         "createdAt": "2026-09-08T15:21:49.811Z"
+      },
+      {
+        "id": "health_1792310155191_kc4gst",
+        "vehicleId": "vehicle-1",
+        "date": "2026-10-18",
+        "km": 334000,
+        "score": 92,
+        "createdAt": "2026-10-18T07:55:55.191Z",
+        "updatedAt": "2026-10-18T08:06:54.710Z"
       }
     ],
     "settings": {
@@ -1507,9 +1602,9 @@
         "Battery": 0.04301075268817204,
         "Air Conditioning": 0.043010752688172005
       },
-      "lastBackupAt": "2026-09-08T15:44:06.651Z",
-      "lastRecordSavedAt": "2026-09-08T15:44:06.651Z",
-      "lastRecordLoadedAt": "2026-09-08T15:26:06.055Z"
+      "lastBackupAt": "2026-10-18T08:07:54.228Z",
+      "lastRecordSavedAt": "2026-10-18T08:07:54.228Z",
+      "lastRecordLoadedAt": "2026-10-18T07:55:33.641Z"
     },
     "pmSourceVersion": "civic-es-excel-v5-record-sync"
   }
